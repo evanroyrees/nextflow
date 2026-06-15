@@ -5,14 +5,14 @@
 :::{versionadded} 25.04.0-edge
 :::
 
-Nextflow provides a unified package management system that allows you to specify dependencies using different package managers through a single, consistent interface. This system supports conda, pixi, and other package managers through a plugin-based architecture.
+Nextflow provides a unified package management system that allows you to specify dependencies using different package managers through a single, consistent interface. This system supports conda, pixi, uv, and other package managers through a plugin-based architecture.
 
 ## Prerequisites
 
 The unified package management system requires:
 - The `preview.package` feature flag to be enabled
-- The appropriate package manager installed on your system (conda, pixi, etc.)
-- The corresponding Nextflow plugin for your chosen package manager
+- The appropriate package manager installed on your system (conda, pixi, uv, etc.)
+- The corresponding Nextflow plugin for your chosen package manager (`nf-conda`, `nf-pixi`, `nf-uv`, etc.)
 
 ## How it works
 
@@ -209,6 +209,56 @@ process pixiExample {
     """
 }
 ```
+
+### uv
+
+The [uv](https://docs.astral.sh/uv/) provider manages Python virtual environments. It is provided by the `nf-uv` plugin and supports:
+- Python package lists with pip-style version specifiers (e.g. `numpy>=1.24 pandas==2.0.0`)
+- `requirements.txt` / `requirements.in` files
+- `pyproject.toml` files
+- Existing virtual environment directories
+
+```nextflow
+process uvExample {
+    package "numpy pandas matplotlib", provider: "uv"
+
+    script:
+    """
+    python -c "import numpy, pandas, matplotlib; print(numpy.__version__)"
+    """
+}
+```
+
+You can also point the directive at a requirements or project file:
+
+```nextflow
+process uvFromFile {
+    package "/path/to/requirements.txt", provider: "uv"
+
+    script:
+    """
+    python analysis.py
+    """
+}
+```
+
+The uv provider can be configured through the `uv` config scope:
+
+```groovy
+// nextflow.config
+uv {
+    cacheDir = "$HOME/.nextflow/uv"
+    pythonVersion = '3.12'
+    installOptions = '--no-cache'
+    createTimeout = '20 min'
+}
+```
+
+:::{note}
+The uv provider creates environments on the local file system and is not supported by executors that use remote object storage as the work directory (e.g. AWS Batch). Use a POSIX-compatible work directory, or set `uv.cacheDir` to a shared file-system path accessible from all compute nodes.
+
+The uv provider is also not supported by Wave container builds — Wave only builds conda-based package environments. Use the uv provider with local or HPC executors rather than enabling `wave.enabled` together with `provider: "uv"`.
+:::
 
 ## Migration from Legacy Directives
 
