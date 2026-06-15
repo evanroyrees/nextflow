@@ -210,6 +210,8 @@ The system is extensible through plugins. Package managers are implemented as pl
 - `nf-conda` - Conda support
 - `nf-pixi` - Pixi support
 - `nf-uv` - uv (Python) support
+- `nf-nix` - Nix support
+- `nf-guix` - GNU Guix support
 
 Custom package managers can be added by implementing the `PackageProvider` interface and registering as a plugin.
 

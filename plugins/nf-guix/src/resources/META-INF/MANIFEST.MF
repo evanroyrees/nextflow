@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Plugin-Class: nextflow.guix.GuixPlugin
+Plugin-Id: nf-guix
+Plugin-Version: 0.1.0
+Plugin-Provider: Seqera Labs
+Plugin-Requires: >=25.04.0

@@ -260,6 +260,65 @@ The uv provider creates environments on the local file system and is not support
 The uv provider is also not supported by Wave container builds — Wave only builds conda-based package environments. Use the uv provider with local or HPC executors rather than enabling `wave.enabled` together with `provider: "uv"`.
 :::
 
+### Nix
+
+The [Nix](https://nixos.org/) provider manages dependencies as Nix profiles. It is provided by the `nf-nix` plugin and supports:
+- Bare package names, resolved against the `nixpkgs` flake by default (e.g. `samtools` becomes `nixpkgs#samtools`)
+- Fully-qualified flake references (e.g. `nixpkgs#hello`, `github:owner/repo#pkg`)
+
+```nextflow
+process nixExample {
+    package "hello", provider: "nix"
+
+    script:
+    """
+    hello
+    """
+}
+```
+
+The flake used to resolve bare names, and other settings, are configured through the `nix` config scope:
+
+```groovy
+// nextflow.config
+nix {
+    cacheDir = "$HOME/.nextflow/nix"
+    flakeRef = 'nixpkgs'        // flake used to resolve bare package names
+    installOptions = ''         // extra args for `nix profile install`
+    createTimeout = '20 min'
+}
+```
+
+The Nix provider requires the `nix` command with the `nix-command` and `flakes` experimental features (Nextflow passes these on the command line). Environments are created on the local file system and are not supported by Wave or remote object-storage work directories.
+
+### Guix
+
+The [GNU Guix](https://guix.gnu.org/) provider manages dependencies as Guix profiles. It is provided by the `nf-guix` plugin and supports package specifications resolved by `guix package`:
+
+```nextflow
+process guixExample {
+    package "hello", provider: "guix"
+
+    script:
+    """
+    hello
+    """
+}
+```
+
+The Guix provider is configured through the `guix` config scope:
+
+```groovy
+// nextflow.config
+guix {
+    cacheDir = "$HOME/.nextflow/guix"
+    installOptions = ''         // extra args for `guix package --install`
+    createTimeout = '20 min'
+}
+```
+
+The Guix provider requires the `guix` command. Environments are created on the local file system and are not supported by Wave or remote object-storage work directories.
+
 ## Migration from Legacy Directives
 
 ### From conda directive
