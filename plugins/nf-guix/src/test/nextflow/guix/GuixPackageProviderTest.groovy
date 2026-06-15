@@ -90,4 +90,11 @@ class GuixPackageProviderTest extends Specification {
         expect:
         provider.getConfig().is(config)
     }
+
+    def 'should declare manifest file names for auto-detection' () {
+        given:
+        def provider = new GuixPackageProvider(new GuixConfig([:], [:]))
+        expect:
+        provider.getManifestFileNames() == ['manifest.scm', 'guix.scm']
+    }
 }

@@ -17,6 +17,7 @@
 package nextflow.guix
 
 import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
@@ -141,8 +142,16 @@ class GuixCache {
             return spec as Path
         }
 
-        final hash = CacheHelper.hasher(spec).hash().toString()
+        // for a manifest file (manifest.scm) hash its content so the cache is
+        // invalidated when the file changes
+        String content = isManifestFile(spec) ? (spec as Path).text : spec
+        final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
+    }
+
+    @PackageScope
+    boolean isManifestFile(String spec) {
+        spec.contains('/') && Files.isRegularFile(spec as Path)
     }
 
     /**
@@ -185,7 +194,9 @@ class GuixCache {
         log.info "Creating env using GNU Guix: $spec [cache $prefixPath]"
 
         String opts = installOptions ? "$installOptions " : ''
-        def cmd = "guix package --profile=${Escape.path(prefixPath)} ${opts}--install $spec"
+        def cmd = isManifestFile(spec)
+            ? "guix package --profile=${Escape.path(prefixPath)} ${opts}--manifest=${Escape.path(spec as Path)}"
+            : "guix package --profile=${Escape.path(prefixPath)} ${opts}--install $spec"
 
         try {
             runCommand( cmd )

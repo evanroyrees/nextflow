@@ -1,0 +1,120 @@
+name: package-providers
+
+# nf-test suite for the unified `package` directive. One CI job per provider
+# (matrix); each job provisions only its own package-manager tool, then runs the
+# provider's tagged nf-test against a development build of Nextflow + the
+# freshly-built nf-<provider> plugins.
+#
+# NOTE: nix and guix are intentionally excluded from CI -- their store/daemon
+# model does not provision cleanly on an ephemeral runner. They are exercised
+# manually (see tests/package-providers-hello.nf).
+
+on:
+  push:
+    paths:
+      - 'plugins/nf-conda/**'
+      - 'plugins/nf-pixi/**'
+      - 'plugins/nf-uv/**'
+      - 'plugins/nf-pak/**'
+      - 'plugins/nf-install2r/**'
+      - 'modules/nextflow/src/main/groovy/nextflow/packages/**'
+      - 'tests/nf-test/**'
+      - '.github/workflows/package-providers.yml'
+  pull_request:
+    paths:
+      - 'plugins/nf-conda/**'
+      - 'plugins/nf-pixi/**'
+      - 'plugins/nf-uv/**'
+      - 'plugins/nf-pak/**'
+      - 'plugins/nf-install2r/**'
+      - 'modules/nextflow/src/main/groovy/nextflow/packages/**'
+      - 'tests/nf-test/**'
+      - '.github/workflows/package-providers.yml'
+  workflow_dispatch:
+
+jobs:
+  nf-test:
+    name: ${{ matrix.provider }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [conda, uv, pixi, pak, install2r]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Build Nextflow and provider plugins
+        run: make assemble
+
+      # ---- per-provider tool provisioning -------------------------------------
+      - name: Provision conda
+        if: matrix.provider == 'conda'
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          channels: conda-forge,bioconda
+
+      - name: Provision uv
+        if: matrix.provider == 'uv'
+        uses: astral-sh/setup-uv@v6
+
+      - name: Provision pixi
+        if: matrix.provider == 'pixi'
+        uses: prefix-dev/setup-pixi@v0.8.10
+        with:
+          run-install: false
+
+      - name: Provision R + pak
+        if: matrix.provider == 'pak'
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install pak
+        if: matrix.provider == 'pak'
+        run: Rscript -e 'install.packages("pak", repos = sprintf("https://r-lib.github.io/p/pak/stable/%s/%s/%s", .Platform$pkgType, R.Version()$os, R.Version()$arch))'
+
+      - name: Provision R + install2.r
+        if: matrix.provider == 'install2r'
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install littler (install2.r)
+        if: matrix.provider == 'install2r'
+        run: |
+          Rscript -e 'install.packages("littler")'
+          sudo ln -sf "$(Rscript -e 'cat(system.file("examples/install2.r", package="littler"))')" /usr/local/bin/install2.r
+
+      # ---- nf-test ------------------------------------------------------------
+      - name: Install nf-test
+        run: |
+          curl -fsSL https://get.nf-test.com | bash
+          sudo mv nf-test /usr/local/bin/
+
+      - name: Use development Nextflow build
+        # Expose the source build of Nextflow as `nextflow` so nf-test runs it
+        # with the locally-built plugins. NXF_PLUGINS_MODE=dev makes Nextflow
+        # resolve the nf-<provider> plugins from plugins/*/build.
+        # (This is the one integration point to validate on the first green run.)
+        run: |
+          mkdir -p "$HOME/bin"
+          printf '#!/usr/bin/env bash\nexec "%s/launch.sh" "$@"\n' "$PWD" > "$HOME/bin/nextflow"
+          chmod +x "$HOME/bin/nextflow"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Run nf-test (${{ matrix.provider }})
+        working-directory: tests/nf-test
+        env:
+          NXF_PLUGINS_MODE: dev
+        run: nf-test test --tag ${{ matrix.provider }}

@@ -96,4 +96,9 @@ class GuixPackageProvider implements PackageProvider {
     Object getConfig() {
         return config
     }
+
+    @Override
+    List<String> getManifestFileNames() {
+        return ['manifest.scm', 'guix.scm']
+    }
 }

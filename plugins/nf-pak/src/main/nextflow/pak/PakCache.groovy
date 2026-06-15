@@ -17,6 +17,7 @@
 package nextflow.pak
 
 import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
@@ -141,8 +142,16 @@ class PakCache {
             return spec as Path
         }
 
-        final hash = CacheHelper.hasher(spec).hash().toString()
+        // for a manifest file (renv.lock / DESCRIPTION) hash its content so the
+        // cache is invalidated when the file changes
+        String content = isManifestFile(spec) ? (spec as Path).text : spec
+        final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
+    }
+
+    @PackageScope
+    boolean isManifestFile(String spec) {
+        spec.contains('/') && Files.isRegularFile(spec as Path)
     }
 
     /**
@@ -184,10 +193,25 @@ class PakCache {
 
         log.info "Creating env using R pak: $spec [cache $prefixPath]"
 
-        // build an R character vector of package names, e.g. "dplyr", "ggplot2"
-        def pkgs = spec.tokenize().collect { "\"" + it + "\"" }.join(', ')
         def opts = installOptions ? ", ${installOptions}" : ''
-        def cmd = "mkdir -p ${Escape.path(prefixPath)} && Rscript -e 'pak::pkg_install(c(${pkgs}), lib=\"${prefixPath}\"${opts})'"
+        def cmd
+        if( isManifestFile(spec) ) {
+            final path = spec as Path
+            final mkdir = "mkdir -p ${Escape.path(prefixPath)} && "
+            if( path.name == 'renv.lock' ) {
+                // restore an renv lock file into the target library
+                cmd = mkdir + "Rscript -e 'pak::lockfile_install(\"${spec}\", lib=\"${prefixPath}\"${opts})'"
+            }
+            else {
+                // a DESCRIPTION file: install the declared dependencies of the package in its directory
+                cmd = mkdir + "Rscript -e 'pak::local_install_deps(\"${path.parent}\", lib=\"${prefixPath}\"${opts})'"
+            }
+        }
+        else {
+            // build an R character vector of package names, e.g. "dplyr", "ggplot2"
+            def pkgs = spec.tokenize().collect { "\"" + it + "\"" }.join(', ')
+            cmd = "mkdir -p ${Escape.path(prefixPath)} && Rscript -e 'pak::pkg_install(c(${pkgs}), lib=\"${prefixPath}\"${opts})'"
+        }
 
         try {
             runCommand( cmd )

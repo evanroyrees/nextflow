@@ -69,4 +69,46 @@ class PakCacheTest extends Specification {
         folder?.deleteDir()
     }
 
+    def 'should create the correct pak command for an renv.lock file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def lock = folder.resolve('renv.lock')
+        lock.text = '{"R":{"Version":"4.3.0"}}'
+        def prefixPath = folder.resolve('env-x')
+        def cache = Spy(PakCache)
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalPakEnv0(lock.toString(), prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('pak::lockfile_install') && c.contains('renv.lock')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should create the correct pak command for a DESCRIPTION file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def desc = folder.resolve('DESCRIPTION')
+        desc.text = 'Package: demo\nImports: dplyr'
+        def prefixPath = folder.resolve('env-x')
+        def cache = Spy(PakCache)
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalPakEnv0(desc.toString(), prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('pak::local_install_deps')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
 }

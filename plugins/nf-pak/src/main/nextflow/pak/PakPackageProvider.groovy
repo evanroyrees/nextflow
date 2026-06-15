@@ -100,4 +100,9 @@ class PakPackageProvider implements PackageProvider {
     Object getConfig() {
         return config
     }
+
+    @Override
+    List<String> getManifestFileNames() {
+        return ['renv.lock', 'DESCRIPTION']
+    }
 }

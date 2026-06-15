@@ -69,4 +69,58 @@ class GuixCacheTest extends Specification {
         folder?.deleteDir()
     }
 
+    def 'should detect a manifest file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def manifest = folder.resolve('manifest.scm')
+        manifest.text = '(specifications->manifest (list "bwa"))'
+        def cache = Spy(GuixCache)
+
+        expect:
+        cache.isManifestFile(manifest.toString())
+        !cache.isManifestFile('bwa samtools')
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should create the correct guix command for a manifest file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def manifest = folder.resolve('manifest.scm')
+        manifest.text = '(specifications->manifest (list "bwa"))'
+        def prefixPath = folder.resolve('env-x')
+        def cache = Spy(GuixCache)
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalGuixEnv0(manifest.toString(), prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('guix package') && c.contains('--manifest=') && c.contains('manifest.scm')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should hash manifest content rather than the path' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def manifest = folder.resolve('manifest.scm')
+        manifest.text = '(specifications->manifest (list "bwa"))'
+        def cache = Spy(GuixCache)
+        def BASE = Paths.get('/guix/envs')
+
+        when:
+        def prefix = cache.guixPrefixPath(manifest.toString())
+        then:
+        1 * cache.getCacheDir() >> BASE
+        prefix.toString().startsWith('/guix/envs/env-')
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
 }
