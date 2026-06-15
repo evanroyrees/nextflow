@@ -123,49 +123,63 @@ class PackageManager {
      * @return Parsed package specification
      */
     static PackageSpec parseSpec(Object packageDef, String provider = null) {
-        if (packageDef instanceof String) {
-            return new PackageSpec(provider, [packageDef])
-        } else if (packageDef instanceof List) {
-            return new PackageSpec(provider, packageDef as List<String>)
-        } else if (packageDef instanceof Map) {
+        // a plain value, e.g. `package "numpy pandas"` (String or GString)
+        if (packageDef instanceof CharSequence) {
+            return new PackageSpec(provider, [packageDef.toString()])
+        }
+        if (packageDef instanceof List) {
+            def list = packageDef as List
+            // Groovy named-args directive form: `package "numpy", provider: "uv"`
+            // is delivered as [ [provider:'uv', ...], "numpy", ... ] with the
+            // options map as the leading element -- merge it and recurse.
+            if (list && list[0] instanceof Map) {
+                def opts = new LinkedHashMap(list[0] as Map)
+                def values = list.size() > 1 ? list.subList(1, list.size()) : []
+                if (!opts.containsKey('packages') && !opts.containsKey('environment') && values)
+                    opts.put('packages', values.size() == 1 ? values[0] : values)
+                return parseSpec(opts, provider)
+            }
+            return new PackageSpec(provider, list.collect { it?.toString() } as List<String>)
+        }
+        if (packageDef instanceof Map) {
             def map = packageDef as Map
             def spec = new PackageSpec()
-            
+
             if (map.containsKey('provider')) {
                 spec.provider = map.provider as String
             } else if (provider) {
                 spec.provider = provider
             }
-            
+
             if (map.containsKey('packages')) {
                 def packages = map.packages
-                if (packages instanceof String) {
-                    spec.entries = [packages]
-                } else if (packages instanceof List) {
-                    spec.entries = packages as List<String>
+                if (packages instanceof List) {
+                    spec.entries = packages.collect { it?.toString() } as List<String>
+                } else if (packages != null) {
+                    spec.entries = [packages.toString()]
                 }
             }
-            
+
             if (map.containsKey('environment')) {
-                spec.environment = map.environment as String
+                spec.environment = map.environment?.toString()
             }
-            
+
             if (map.containsKey('channels')) {
                 def channels = map.channels
                 if (channels instanceof List) {
                     spec.channels = channels as List<String>
-                } else if (channels instanceof String) {
-                    spec.channels = [channels]
+                } else if (channels != null) {
+                    spec.channels = [channels.toString()]
                 }
             }
-            
+
             if (map.containsKey('options')) {
                 spec.options = map.options as Map<String, Object>
             }
-            
+
             return spec
         }
-        
+
         throw new IllegalArgumentException("Invalid package definition: ${packageDef}")
     }
 

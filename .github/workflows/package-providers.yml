@@ -131,5 +131,6 @@ jobs:
         working-directory: tests/nf-test
         env:
           NXF_PLUGINS_MODE: dev
-          COLUMNS: "80"   # avoid `tput cols 2>/dev/tty` failing on headless runners
+          NXF_SYNTAX_PARSER: v2   # the `package` directive requires the v2 parser
+          COLUMNS: "80"           # avoid `tput cols 2>/dev/tty` failing on headless runners
         run: nf-test test --tag ${{ matrix.provider }}

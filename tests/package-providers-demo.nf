@@ -10,6 +10,9 @@
  * Each provider is supplied by its own `nf-<provider>` plugin and resolves the
  * declared dependency for that single process only, aligning with Nextflow's
  * process-specific dependency model.
+ *
+ * NOTE: the `package` directive requires the v2 syntax parser:
+ *   export NXF_SYNTAX_PARSER=v2
  */
 
 nextflow.enable.dsl=2

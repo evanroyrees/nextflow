@@ -110,6 +110,26 @@ class PackageManagerTest extends Specification {
         spec.channels == ['bioconda']
     }
 
+    def 'should parse the directive named-args form (leading options map)'() {
+        when:
+        // `package "numpy pandas", provider: "uv"` is delivered as [ [provider:'uv'], "numpy pandas" ]
+        def spec = PackageManager.parseSpec([[provider: 'uv'], 'numpy pandas'], 'conda')
+
+        then:
+        spec.provider == 'uv'
+        spec.entries == ['numpy pandas']
+    }
+
+    def 'should fall back to the default provider when none is given in the named-args form'() {
+        when:
+        def spec = PackageManager.parseSpec([[channels: ['bioconda']], 'samtools'], 'conda')
+
+        then:
+        spec.provider == 'conda'
+        spec.entries == ['samtools']
+        spec.channels == ['bioconda']
+    }
+
     def 'should throw error for invalid package definition'() {
         when:
         PackageManager.parseSpec(123, 'conda')

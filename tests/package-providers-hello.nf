@@ -18,6 +18,9 @@
  *   - nix and guix are best-effort: their store/daemon model is awkward inside a
  *     transient task container, so the cached profile does not survive across
  *     runs (fine for a one-shot hello).
+ *
+ * NOTE: the `package` directive requires the v2 syntax parser:
+ *   export NXF_SYNTAX_PARSER=v2
  */
 
 nextflow.enable.dsl=2

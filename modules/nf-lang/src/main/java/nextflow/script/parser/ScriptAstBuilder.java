@@ -1980,7 +1980,10 @@ public class ScriptAstBuilder {
         // Types.getText(Types.KEYWORD_IMPORT),
         Types.getText(Types.KEYWORD_INTERFACE),
         Types.getText(Types.KEYWORD_NATIVE),
-        Types.getText(Types.KEYWORD_PACKAGE),
+        // KEYWORD_PACKAGE is intentionally allowed as an identifier so it can be
+        // used as the name of the `package` process directive (the PACKAGE lexer
+        // token is likewise disabled in ScriptLexer.g4)
+        // Types.getText(Types.KEYWORD_PACKAGE),
         Types.getText(Types.KEYWORD_PRIVATE),
         Types.getText(Types.KEYWORD_PROTECTED),
         Types.getText(Types.KEYWORD_PUBLIC),

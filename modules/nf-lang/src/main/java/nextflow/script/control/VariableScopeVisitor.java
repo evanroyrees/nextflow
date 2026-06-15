@@ -330,10 +330,16 @@ class VariableScopeVisitor extends ScriptVisitorSupport {
         var mn = vsc.findDslFunction(name, call.getMethod());
         if( mn != null )
             call.putNodeMetaData(ASTNodeMarker.METHOD_TARGET, mn);
-        else
+        else if( !KEYWORD_DIRECTIVES.contains(name) )
             vsc.addError("Unrecognized " + typeLabel + " `" + name + "`", node);
         return call;
     }
+
+    // Directives whose name is a Groovy/Java keyword and therefore cannot be
+    // declared as a method in the `DirectiveDsl` interface -- e.g. the `package`
+    // directive. They are valid at runtime (handled by ProcessConfig) so the
+    // resolver must not flag them as unrecognized.
+    private static final List<String> KEYWORD_DIRECTIVES = List.of("package");
 
     private static final List<String> EMIT_AND_TOPIC = List.of("emit", "topic");
 

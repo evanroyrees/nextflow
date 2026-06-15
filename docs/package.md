@@ -20,6 +20,10 @@ Nextflow creates and activates the appropriate environment based on the package 
 
 ## Enabling Package Management
 
+:::{important}
+The `package` directive requires the **v2 syntax parser**, because `package` is a reserved word in the legacy (v1) parser. Enable it by setting `export NXF_SYNTAX_PARSER=v2` before running Nextflow.
+:::
+
 The unified package management system is enabled using the `preview.package` feature flag:
 
 ```groovy
