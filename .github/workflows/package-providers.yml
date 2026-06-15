@@ -54,7 +54,10 @@ jobs:
           cache: gradle
 
       - name: Build Nextflow and provider plugins
-        run: make assemble
+        # `make compile` compiles all subprojects (incl. plugin classes/resources)
+        # and runs exportClasspath, which generates the `.launch.classpath` the dev
+        # launcher needs.
+        run: make compile
 
       # ---- per-provider tool provisioning -------------------------------------
       - name: Provision conda
@@ -128,4 +131,5 @@ jobs:
         working-directory: tests/nf-test
         env:
           NXF_PLUGINS_MODE: dev
+          COLUMNS: "80"   # avoid `tput cols 2>/dev/tty` failing on headless runners
         run: nf-test test --tag ${{ matrix.provider }}
