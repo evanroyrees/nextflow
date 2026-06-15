@@ -64,6 +64,10 @@ jobs:
           auto-update-conda: true
           channels: conda-forge,bioconda
 
+      - name: Put conda on PATH
+        if: matrix.provider == 'conda'
+        run: echo "$CONDA/bin" >> "$GITHUB_PATH"
+
       - name: Provision uv
         if: matrix.provider == 'uv'
         uses: astral-sh/setup-uv@v6
@@ -98,9 +102,16 @@ jobs:
 
       # ---- nf-test ------------------------------------------------------------
       - name: Install nf-test
+        env:
+          NFT_VERSION: "0.9.2"
         run: |
-          curl -fsSL https://get.nf-test.com | bash
+          # canonical installer (get.nf-test.com intermittently 504s); retry hard
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 \
+            https://code.askimed.com/install/nf-test | bash -s "$NFT_VERSION"
           sudo mv nf-test /usr/local/bin/
+          # the launcher needs its jar alongside it (older releases ship a separate jar)
+          [ -f nf-test.jar ] && sudo mv nf-test.jar /usr/local/bin/ || true
+          nf-test version
 
       - name: Use development Nextflow build
         # Expose the source build of Nextflow as `nextflow` so nf-test runs it
