@@ -16,6 +16,8 @@
 
 package nextflow.packages
 
+import java.nio.file.Files
+
 import nextflow.ISession
 import spock.lang.Specification
 
@@ -114,6 +116,75 @@ class PackageManagerTest extends Specification {
 
         then:
         thrown(IllegalArgumentException)
+    }
+
+    def 'should auto-detect a manifest file in the module directory'() {
+        given:
+        def dir = Files.createTempDirectory('test')
+        dir.resolve('environment.yml').text = 'name: test'
+        def manifests = [conda: ['environment.yml', 'environment.yaml'], uv: ['requirements.txt']]
+
+        when:
+        def spec = PackageManager.findManifestSpec(dir, manifests)
+
+        then:
+        spec.provider == 'conda'
+        spec.environment == dir.resolve('environment.yml').toAbsolutePath().toString()
+        spec.hasEnvironmentFile()
+
+        cleanup:
+        dir?.deleteDir()
+    }
+
+    def 'should auto-detect the uv manifest when only it is present'() {
+        given:
+        def dir = Files.createTempDirectory('test')
+        dir.resolve('requirements.txt').text = 'numpy'
+        def manifests = [conda: ['environment.yml'], uv: ['requirements.txt', 'pyproject.toml']]
+
+        when:
+        def spec = PackageManager.findManifestSpec(dir, manifests)
+
+        then:
+        spec.provider == 'uv'
+        spec.environment.endsWith('requirements.txt')
+
+        cleanup:
+        dir?.deleteDir()
+    }
+
+    def 'should prefer conda over uv when both manifests are present'() {
+        given:
+        def dir = Files.createTempDirectory('test')
+        dir.resolve('environment.yml').text = 'name: test'
+        dir.resolve('requirements.txt').text = 'numpy'
+        def manifests = [conda: ['environment.yml'], uv: ['requirements.txt']]
+
+        when:
+        def spec = PackageManager.findManifestSpec(dir, manifests)
+
+        then:
+        spec.provider == 'conda'
+
+        cleanup:
+        dir?.deleteDir()
+    }
+
+    def 'should return null when no manifest is found'() {
+        given:
+        def dir = Files.createTempDirectory('test')
+        def manifests = [conda: ['environment.yml'], uv: ['requirements.txt']]
+
+        expect:
+        PackageManager.findManifestSpec(dir, manifests) == null
+
+        cleanup:
+        dir?.deleteDir()
+    }
+
+    def 'should return null when module dir is null'() {
+        expect:
+        PackageManager.findManifestSpec(null, [conda: ['environment.yml']]) == null
     }
 
     // TODO: Fix mock setup for navigate extension method

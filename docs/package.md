@@ -151,6 +151,35 @@ process fromFile {
 }
 ```
 
+### Automatic environment file detection
+
+When a process does not declare a `package` directive, Nextflow automatically looks in the process **module directory** for a known manifest file and uses it — analogous to how Wave automatically picks up a `Dockerfile`. This means you can drop a manifest file next to your module and omit the directive entirely:
+
+```
+modules/
+└── myprocess/
+    ├── main.nf            # process with no `package` directive
+    └── environment.yml    # auto-detected -> provider: conda
+```
+
+The first manifest found determines the provider:
+
+| Manifest file | Provider |
+|---|---|
+| `environment.yml`, `environment.yaml` | `conda` |
+| `requirements.txt`, `pyproject.toml` | `uv` |
+
+Auto-detection is enabled by default when the package preview feature is on. Disable it with:
+
+```groovy
+// nextflow.config
+packages {
+    autoDetect = false
+}
+```
+
+An explicit `package` directive always takes precedence over auto-detection. Other providers expose their manifest file names through the provider plugin API (`getManifestFileNames()`), so additional managers can opt in to auto-detection.
+
 ### Per-Provider Options
 
 Some providers support additional options:
@@ -169,6 +198,24 @@ process withOptions {
 ```
 
 ## Supported Providers
+
+Each provider is supplied by its own `nf-<provider>` plugin. Load the plugins you need in your configuration (e.g. `plugins { id 'nf-uv' }`). The table below lists the supported package managers and whether they can be built into containers by [Wave](https://docs.seqera.io/wave); providers that are not Wave-compatible create environments on the local file system and are skipped by Wave so the provider plugin resolves them locally.
+
+| Provider (`provider:`) | Plugin | Manages | Wave-compatible |
+|---|---|---|---|
+| `conda` | `nf-conda` | Conda packages / environment files | Yes |
+| `mamba` / `micromamba` | `nf-conda` | Conda packages (mamba backend) | Yes |
+| `pixi` | `nf-pixi` | Conda packages (pixi) | Yes (built as conda) |
+| `uv` | `nf-uv` | Python packages (uv virtual environments) | No (local only) |
+| `nix` | `nf-nix` | Nix packages / flake refs | No (local only) |
+| `guix` | `nf-guix` | GNU Guix packages | No (local only) |
+| `pak` | `nf-pak` | R packages (pak) | No (local only) |
+| `install2r` | `nf-install2r` | R packages (install2.r / littler) | No (local only) |
+
+:::{note}
+When `wave.enabled` is set, only Wave-compatible providers are built into containers. Processes that use a local-only provider (uv, nix, guix, pak, install2r) are not sent to Wave — their environments are created on the local file system by the corresponding plugin instead, so conda-on-Wave and uv-locally can coexist in the same pipeline.
+:::
+
 
 ### Conda
 
@@ -318,6 +365,62 @@ guix {
 ```
 
 The Guix provider requires the `guix` command. Environments are created on the local file system and are not supported by Wave or remote object-storage work directories.
+
+### R: pak
+
+The [pak](https://pak.r-lib.org/) provider installs R packages into a per-environment R library using `pak::pkg_install()`. It is provided by the `nf-pak` plugin:
+
+```nextflow
+process pakExample {
+    package "dplyr ggplot2", provider: "pak"
+
+    script:
+    """
+    Rscript -e 'library(dplyr); library(ggplot2)'
+    """
+}
+```
+
+The pak provider activates the environment by setting `R_LIBS_USER` to the created library. It is configured through the `pak` config scope:
+
+```groovy
+// nextflow.config
+pak {
+    cacheDir = "$HOME/.nextflow/pak"
+    installOptions = ''         // extra args appended to pak::pkg_install()
+    createTimeout = '20 min'
+}
+```
+
+The pak provider requires `R` (the `Rscript` command) with the `pak` package available. Environments are created on the local file system and are not supported by Wave or remote object-storage work directories.
+
+### R: install2.r
+
+The `install2.r` provider (from the [littler](https://github.com/eddelbuettel/littler) package) installs CRAN packages into a per-environment R library. It is provided by the `nf-install2r` plugin:
+
+```nextflow
+process install2rExample {
+    package "dplyr ggplot2", provider: "install2r"
+
+    script:
+    """
+    Rscript -e 'library(dplyr); library(ggplot2)'
+    """
+}
+```
+
+Like pak, it activates via `R_LIBS_USER` and is configured through the `install2r` config scope:
+
+```groovy
+// nextflow.config
+install2r {
+    cacheDir = "$HOME/.nextflow/install2r"
+    installOptions = ''         // extra install2.r CLI flags, e.g. '--error'
+    createTimeout = '20 min'
+}
+```
+
+The install2r provider requires the `install2.r` command on the `PATH`. Environments are created on the local file system and are not supported by Wave or remote object-storage work directories.
 
 ## Migration from Legacy Directives
 

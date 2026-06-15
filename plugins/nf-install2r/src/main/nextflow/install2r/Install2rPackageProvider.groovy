@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package nextflow.uv
+package nextflow.install2r
 
 import java.nio.file.Path
 
@@ -25,39 +25,38 @@ import nextflow.packages.PackageSpec
 import nextflow.util.Escape
 
 /**
- * uv package provider implementation.
+ * install2.r package provider implementation.
  *
- * Creates and activates uv-managed Python virtual environments from a
- * package list, a requirements file, a pyproject.toml file, or an existing
- * virtual environment directory.
+ * Installs R/CRAN packages into a library directory using install2.r (from the
+ * littler package) and activates it by pointing R_LIBS_USER at that directory.
  *
  * @author Evan Floden
  */
 @Slf4j
 @CompileStatic
-class UvPackageProvider implements PackageProvider {
+class Install2rPackageProvider implements PackageProvider {
 
-    private UvCache cache
-    private final UvConfig config
+    private Install2rCache cache
+    private final Install2rConfig config
 
-    UvPackageProvider(UvConfig config) {
+    Install2rPackageProvider(Install2rConfig config) {
         this.config = config
-        this.cache = new UvCache(config)
+        this.cache = new Install2rCache(config)
     }
 
     @Override
     String getName() {
-        return 'uv'
+        return 'install2r'
     }
 
     @Override
     boolean isAvailable() {
         try {
-            def process = new ProcessBuilder('uv', '--version').start()
+            def process = new ProcessBuilder('bash', '-c', 'command -v install2.r >/dev/null 2>&1').start()
             process.waitFor()
             return process.exitValue() == 0
         } catch (Exception e) {
-            log.debug "uv not available: ${e.message}"
+            log.debug "install2.r not available: ${e.message}"
             return false
         }
     }
@@ -65,28 +64,25 @@ class UvPackageProvider implements PackageProvider {
     @Override
     Path createEnvironment(PackageSpec spec) {
         if (!supportsSpec(spec)) {
-            throw new IllegalArgumentException("Unsupported package spec for uv: ${spec}")
+            throw new IllegalArgumentException("Unsupported package spec for install2.r: ${spec}")
         }
 
-        String uvEnv
+        String env
         if (spec.hasEnvironmentFile()) {
-            // Path to a requirements file, pyproject.toml, or existing venv directory
-            uvEnv = spec.environment
+            env = spec.environment
         } else if (spec.hasEntries()) {
-            // Space-separated package list e.g. 'numpy pandas matplotlib',
-            // or a single path to a requirements/pyproject file or venv directory
-            uvEnv = spec.entries.join(' ')
+            env = spec.entries.join(' ')
         } else {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(uvEnv)
+        return cache.getCachePathFor(env)
     }
 
     @Override
     String getActivationScript(Path envPath) {
         return """\
-            source ${Escape.path(envPath)}/bin/activate
+            export R_LIBS_USER=${Escape.path(envPath)}
             """.stripIndent()
     }
 
@@ -98,10 +94,5 @@ class UvPackageProvider implements PackageProvider {
     @Override
     Object getConfig() {
         return config
-    }
-
-    @Override
-    List<String> getManifestFileNames() {
-        return ['requirements.txt', 'pyproject.toml']
     }
 }

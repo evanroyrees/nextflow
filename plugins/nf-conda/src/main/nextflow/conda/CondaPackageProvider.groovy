@@ -99,4 +99,9 @@ class CondaPackageProvider implements PackageProvider {
     Object getConfig() {
         return config
     }
+
+    @Override
+    List<String> getManifestFileNames() {
+        return ['environment.yml', 'environment.yaml']
+    }
 }

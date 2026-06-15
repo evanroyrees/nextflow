@@ -79,10 +79,38 @@ process useGuix {
     """
 }
 
+// pak provider (nf-pak) — R packages via pak
+process usePak {
+    package "jsonlite", provider: "pak"
+
+    output:
+    stdout
+
+    script:
+    """
+    Rscript -e 'cat("jsonlite", as.character(packageVersion("jsonlite")), "\\n")'
+    """
+}
+
+// install2.r provider (nf-install2r) — R packages via littler
+process useInstall2r {
+    package "jsonlite", provider: "install2r"
+
+    output:
+    stdout
+
+    script:
+    """
+    Rscript -e 'cat("jsonlite", as.character(packageVersion("jsonlite")), "\\n")'
+    """
+}
+
 workflow {
-    useConda() | view { "conda: ${it.trim()}" }
-    usePixi()  | view { "pixi:  ${it.trim()}" }
-    useUv()    | view { "uv:    ${it.trim()}" }
-    useNix()   | view { "nix:   ${it.trim()}" }
-    useGuix()  | view { "guix:  ${it.trim()}" }
+    useConda()      | view { "conda:     ${it.trim()}" }
+    usePixi()       | view { "pixi:      ${it.trim()}" }
+    useUv()         | view { "uv:        ${it.trim()}" }
+    useNix()        | view { "nix:       ${it.trim()}" }
+    useGuix()       | view { "guix:      ${it.trim()}" }
+    usePak()        | view { "pak:       ${it.trim()}" }
+    useInstall2r()  | view { "install2r: ${it.trim()}" }
 }

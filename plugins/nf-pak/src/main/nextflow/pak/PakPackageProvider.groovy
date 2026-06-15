@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package nextflow.uv
+package nextflow.pak
 
 import java.nio.file.Path
 
@@ -25,39 +25,40 @@ import nextflow.packages.PackageSpec
 import nextflow.util.Escape
 
 /**
- * uv package provider implementation.
+ * R pak package provider implementation.
  *
- * Creates and activates uv-managed Python virtual environments from a
- * package list, a requirements file, a pyproject.toml file, or an existing
- * virtual environment directory.
+ * Creates and activates pak-managed R library directories from a package
+ * list or an existing R library directory. Packages are installed with
+ * {@code pak::pkg_install(..., lib=<dir>)} and activated by pointing
+ * {@code R_LIBS_USER} at the library directory.
  *
  * @author Evan Floden
  */
 @Slf4j
 @CompileStatic
-class UvPackageProvider implements PackageProvider {
+class PakPackageProvider implements PackageProvider {
 
-    private UvCache cache
-    private final UvConfig config
+    private PakCache cache
+    private final PakConfig config
 
-    UvPackageProvider(UvConfig config) {
+    PakPackageProvider(PakConfig config) {
         this.config = config
-        this.cache = new UvCache(config)
+        this.cache = new PakCache(config)
     }
 
     @Override
     String getName() {
-        return 'uv'
+        return 'pak'
     }
 
     @Override
     boolean isAvailable() {
         try {
-            def process = new ProcessBuilder('uv', '--version').start()
+            def process = new ProcessBuilder('Rscript', '-e', 'if(!requireNamespace("pak",quietly=TRUE)) quit(status=1)').start()
             process.waitFor()
             return process.exitValue() == 0
         } catch (Exception e) {
-            log.debug "uv not available: ${e.message}"
+            log.debug "R pak not available: ${e.message}"
             return false
         }
     }
@@ -65,28 +66,28 @@ class UvPackageProvider implements PackageProvider {
     @Override
     Path createEnvironment(PackageSpec spec) {
         if (!supportsSpec(spec)) {
-            throw new IllegalArgumentException("Unsupported package spec for uv: ${spec}")
+            throw new IllegalArgumentException("Unsupported package spec for pak: ${spec}")
         }
 
-        String uvEnv
+        String pakEnv
         if (spec.hasEnvironmentFile()) {
-            // Path to a requirements file, pyproject.toml, or existing venv directory
-            uvEnv = spec.environment
+            // Path to an existing R library directory
+            pakEnv = spec.environment
         } else if (spec.hasEntries()) {
-            // Space-separated package list e.g. 'numpy pandas matplotlib',
-            // or a single path to a requirements/pyproject file or venv directory
-            uvEnv = spec.entries.join(' ')
+            // Space-separated package list e.g. 'dplyr ggplot2',
+            // or a single path to an existing R library directory
+            pakEnv = spec.entries.join(' ')
         } else {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(uvEnv)
+        return cache.getCachePathFor(pakEnv)
     }
 
     @Override
     String getActivationScript(Path envPath) {
         return """\
-            source ${Escape.path(envPath)}/bin/activate
+            export R_LIBS_USER=${Escape.path(envPath)}
             """.stripIndent()
     }
 
@@ -98,10 +99,5 @@ class UvPackageProvider implements PackageProvider {
     @Override
     Object getConfig() {
         return config
-    }
-
-    @Override
-    List<String> getManifestFileNames() {
-        return ['requirements.txt', 'pyproject.toml']
     }
 }

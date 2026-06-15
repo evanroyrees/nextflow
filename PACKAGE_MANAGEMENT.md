@@ -212,6 +212,8 @@ The system is extensible through plugins. Package managers are implemented as pl
 - `nf-uv` - uv (Python) support
 - `nf-nix` - Nix support
 - `nf-guix` - GNU Guix support
+- `nf-pak` - R pak support
+- `nf-install2r` - R install2.r (littler) support
 
 Custom package managers can be added by implementing the `PackageProvider` interface and registering as a plugin.
 

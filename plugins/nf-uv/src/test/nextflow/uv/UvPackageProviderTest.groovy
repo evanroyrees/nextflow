@@ -103,4 +103,11 @@ class UvPackageProviderTest extends Specification {
         expect:
         provider.getConfig().is(config)
     }
+
+    def 'should declare manifest file names for auto-detection' () {
+        given:
+        def provider = new UvPackageProvider(new UvConfig([:], [:]))
+        expect:
+        provider.getManifestFileNames() == ['requirements.txt', 'pyproject.toml']
+    }
 }

@@ -20,6 +20,7 @@ import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 import groovy.transform.CompileStatic
+import groovy.transform.PackageScope
 import groovy.util.logging.Slf4j
 import nextflow.ISession
 import nextflow.plugin.Plugins
@@ -166,6 +167,57 @@ class PackageManager {
         }
         
         throw new IllegalArgumentException("Invalid package definition: ${packageDef}")
+    }
+
+    /**
+     * Auto-detect a package specification by scanning a module directory for a
+     * provider manifest file (e.g. {@code environment.yml}, {@code requirements.txt}).
+     *
+     * Only providers that are available on the system are considered; the manifest
+     * file names are contributed by each provider via {@link PackageProvider#getManifestFileNames()}.
+     *
+     * @param moduleDir the process module directory to scan
+     * @return a {@link PackageSpec} referencing the detected manifest file, or {@code null}
+     *         if no provider manifest is found
+     */
+    PackageSpec detectSpec(Path moduleDir) {
+        if( !moduleDir )
+            return null
+        final manifests = new LinkedHashMap<String, List<String>>()
+        for( String name : providers.keySet() )
+            manifests.put(name, providers.get(name).getManifestFileNames())
+        return findManifestSpec(moduleDir, manifests)
+    }
+
+    /**
+     * Pure detection helper: given a map of provider name to the manifest file
+     * names it supports, return a spec for the first manifest found in {@code moduleDir}.
+     * Providers are scanned in a deterministic (name-sorted) order.
+     *
+     * @param moduleDir the directory to scan
+     * @param providerManifests map of provider name to its manifest file names
+     * @return a {@link PackageSpec} for the first match, or {@code null}
+     */
+    @PackageScope
+    static PackageSpec findManifestSpec(Path moduleDir, Map<String, List<String>> providerManifests) {
+        if( !moduleDir || !providerManifests )
+            return null
+        for( String provider : providerManifests.keySet().sort() ) {
+            final files = providerManifests.get(provider)
+            if( !files )
+                continue
+            for( String file : files ) {
+                final candidate = moduleDir.resolve(file)
+                if( candidate.exists() ) {
+                    log.debug "Auto-detected ${provider} manifest file: ${candidate}"
+                    final spec = new PackageSpec()
+                    spec.provider = provider
+                    spec.environment = candidate.toAbsolutePath().toString()
+                    return spec
+                }
+            }
+        }
+        return null
     }
 
     /**
