@@ -5,7 +5,7 @@
  * provider plugin: conda, pixi, uv, nix, and guix.
  *
  * Run with:
- *   nextflow run tests/package-providers-demo.nf -c tests/package-providers-demo.config
+ *   nextflow run tests/nf-test/examples/package-providers-demo.nf -c tests/nf-test/examples/package-providers-demo.config
  *
  * Each provider is supplied by its own `nf-<provider>` plugin and resolves the
  * declared dependency for that single process only, aligning with Nextflow's

@@ -103,6 +103,9 @@ class PakPackageProvider implements PackageProvider {
 
     @Override
     List<String> getManifestFileNames() {
-        return ['renv.lock', 'DESCRIPTION']
+        // Only DESCRIPTION is supported via pak::local_install_deps(); renv.lock
+        // is intentionally excluded because pak::lockfile_install() reads pak's
+        // own native lock format, not the renv.lock JSON schema.
+        return ['DESCRIPTION']
     }
 }

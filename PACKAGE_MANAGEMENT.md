@@ -220,5 +220,5 @@ Custom package managers can be added by implementing the `PackageProvider` inter
 ## Examples
 
 See the test files for complete examples:
-- `tests/package-test.nf` - Basic usage examples
-- `tests/integration-test.nf` - Integration and backward compatibility tests
+- `tests/nf-test/examples/package-test.nf` - Basic usage examples
+- `tests/nf-test/examples/integration-test.nf` - Integration and backward compatibility tests

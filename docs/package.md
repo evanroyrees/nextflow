@@ -174,7 +174,6 @@ The first manifest found (providers are scanned in name order) determines the pr
 | `pixi.toml` | `pixi` | pixi project install |
 | `requirements.txt`, `pyproject.toml` | `uv` | `uv pip install -r` |
 | `manifest.scm`, `guix.scm` | `guix` | `guix package --manifest=` |
-| `renv.lock` | `pak` | `pak::lockfile_install()` |
 | `DESCRIPTION` | `pak` | `pak::local_install_deps()` |
 
 `nix` and `install2r` do not participate in auto-detection: a `flake.nix`/`shell.nix` can describe a dev shell or arbitrary packages (no unambiguous "install these tools" mapping), and `install2.r` is a CLI for named packages with no manifest-file convention. Use an explicit `package` directive for those.

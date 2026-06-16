@@ -196,16 +196,10 @@ class PakCache {
         def opts = installOptions ? ", ${installOptions}" : ''
         def cmd
         if( isManifestFile(spec) ) {
+            // a DESCRIPTION file: install the declared dependencies of the package
+            // in its directory (ask=FALSE for non-interactive safety)
             final path = spec as Path
-            final mkdir = "mkdir -p ${Escape.path(prefixPath)} && "
-            if( path.name == 'renv.lock' ) {
-                // restore an renv lock file into the target library
-                cmd = mkdir + "Rscript -e 'pak::lockfile_install(\"${spec}\", lib=\"${prefixPath}\"${opts})'"
-            }
-            else {
-                // a DESCRIPTION file: install the declared dependencies of the package in its directory
-                cmd = mkdir + "Rscript -e 'pak::local_install_deps(\"${path.parent}\", lib=\"${prefixPath}\"${opts})'"
-            }
+            cmd = "mkdir -p ${Escape.path(prefixPath)} && Rscript -e 'pak::local_install_deps(\"${path.parent}\", lib=\"${prefixPath}\", ask = FALSE${opts})'"
         }
         else {
             // build an R character vector of package names, e.g. "dplyr", "ggplot2"

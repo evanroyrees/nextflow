@@ -94,6 +94,6 @@ class PakPackageProviderTest extends Specification {
         given:
         def provider = new PakPackageProvider(new PakConfig([:], [:]))
         expect:
-        provider.getManifestFileNames() == ['renv.lock', 'DESCRIPTION']
+        provider.getManifestFileNames() == ['DESCRIPTION']
     }
 }

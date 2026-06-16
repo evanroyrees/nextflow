@@ -11,7 +11,7 @@
  * container to build the per-process environment.
  *
  * Run with:
- *   nextflow run tests/package-providers-hello.nf -c tests/package-providers-hello.config
+ *   nextflow run tests/nf-test/examples/package-providers-hello.nf -c tests/nf-test/examples/package-providers-hello.config
  *
  * Notes:
  *   - conda / pixi / uv / pak / install2r containerise cleanly.

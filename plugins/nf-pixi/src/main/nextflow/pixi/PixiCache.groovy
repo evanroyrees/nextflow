@@ -302,7 +302,7 @@ class PixiCache {
             // dependency list must be valid TOML (name = "version-spec"), so the
             // space-separated package spec is converted accordingly.
             manifestFile.text = """\
-[project]
+[workspace]
 name = "nextflow-env"
 version = "0.1.0"
 description = "Nextflow generated Pixi environment"
