@@ -59,7 +59,11 @@ class Install2rCache {
 
     private String installOptions
 
+    private String repos
+
     private Path configCacheDir0
+
+    @PackageScope String getRepos() { repos }
 
     @PackageScope String getInstallOptions() { installOptions }
 
@@ -88,6 +92,8 @@ class Install2rCache {
 
         if( config.cacheDir() )
             configCacheDir0 = config.cacheDir().toAbsolutePath()
+
+        repos = config.repos() ?: 'https://cloud.r-project.org'
     }
 
     /**
@@ -186,7 +192,8 @@ class Install2rCache {
         log.info "Creating env using install2.r: $spec [cache $prefixPath]"
 
         def opts = installOptions ? "${installOptions} " : ''
-        def cmd = "mkdir -p ${Escape.path(prefixPath)} && install2.r -l ${Escape.path(prefixPath)} ${opts}${spec}"
+        def repoOpt = repos ? "-r ${Escape.cli(repos)} " : ''
+        def cmd = "mkdir -p ${Escape.path(prefixPath)} && install2.r ${repoOpt}-l ${Escape.path(prefixPath)} ${opts}${spec}"
 
         try {
             runCommand( cmd )

@@ -61,6 +61,12 @@ class Install2rConfig implements ConfigScope {
     """)
     final Duration createTimeout
 
+    @ConfigOption
+    @Description("""
+        The CRAN repository used by `install2.r` to resolve packages (default: `https://cloud.r-project.org`).
+    """)
+    final String repos
+
     /* required by extension point -- do not remove */
     Install2rConfig() {}
 
@@ -71,6 +77,7 @@ class Install2rConfig implements ConfigScope {
         cacheDir = opts.cacheDir
         installOptions = opts.installOptions
         createTimeout = opts.createTimeout as Duration ?: Duration.of('20min')
+        repos = opts.repos ?: 'https://cloud.r-project.org'
     }
 
     boolean isEnabled() {
@@ -87,5 +94,9 @@ class Install2rConfig implements ConfigScope {
 
     Path cacheDir() {
         cacheDir as Path
+    }
+
+    String repos() {
+        repos
     }
 }

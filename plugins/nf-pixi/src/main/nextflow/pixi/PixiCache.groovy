@@ -235,6 +235,43 @@ class PixiCache {
     }
 
     @PackageScope
+    /**
+     * The conda/pixi platform string for the current host (e.g. {@code linux-64},
+     * {@code osx-arm64}). Pixi manifests must declare the platforms they support.
+     */
+    @PackageScope
+    static String currentPixiPlatform() {
+        final os = System.getProperty('os.name', '').toLowerCase()
+        final arch = System.getProperty('os.arch', '').toLowerCase()
+        final isArm = arch.contains('aarch64') || arch.contains('arm')
+        if( os.contains('mac') || os.contains('darwin') )
+            return isArm ? 'osx-arm64' : 'osx-64'
+        if( os.contains('win') )
+            return 'win-64'
+        return isArm ? 'linux-aarch64' : 'linux-64'
+    }
+
+    /**
+     * Convert a space-separated package spec (e.g. {@code "cowpy numpy>=1.20"})
+     * into TOML dependency lines (e.g. {@code cowpy = "*"\nnumpy = ">=1.20"}).
+     */
+    @PackageScope
+    static String toTomlDependencies(String pixiEnv) {
+        def lines = new ArrayList<String>()
+        for( String tok : pixiEnv.trim().split(/\s+/) ) {
+            if( !tok )
+                continue
+            String name = tok.replaceFirst(/[^A-Za-z0-9_.\-].*$/, '')
+            String ver = tok.substring(name.length()).trim()
+            if( ver.isEmpty() )
+                ver = '*'
+            else if( ver.startsWith('=') && !ver.startsWith('==') )
+                ver = ver.substring(1)  // conda exact `=1.17` -> `1.17`
+            lines.add(name + ' = "' + ver + '"')
+        }
+        return lines.join('\n')
+    }
+
     Path createLocalPixiEnv0(String pixiEnv, Path prefixPath) {
         log.info "Creating env using pixi: $pixiEnv [cache $prefixPath]"
 
@@ -261,16 +298,19 @@ class PixiCache {
             prefixPath.mkdirs()
             final manifestFile = prefixPath.resolve('pixi.toml')
 
-            // Create a simple pixi.toml with the requested packages
+            // Create a simple pixi.toml with the requested packages. The
+            // dependency list must be valid TOML (name = "version-spec"), so the
+            // space-separated package spec is converted accordingly.
             manifestFile.text = """\
 [project]
 name = "nextflow-env"
 version = "0.1.0"
 description = "Nextflow generated Pixi environment"
 channels = ["conda-forge"]
+platforms = ["${currentPixiPlatform()}"]
 
 [dependencies]
-${pixiEnv}
+${toTomlDependencies(pixiEnv)}
 """.stripIndent()
 
             cmd = "cd ${Escape.path(prefixPath)} && pixi install ${opts}"

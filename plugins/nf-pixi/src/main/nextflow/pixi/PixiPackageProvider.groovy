@@ -16,6 +16,7 @@
 
 package nextflow.pixi
 
+import java.nio.file.Files
 import java.nio.file.Path
 
 import groovy.transform.CompileStatic
@@ -82,9 +83,11 @@ class PixiPackageProvider implements PackageProvider {
     String getActivationScript(Path envPath) {
         def result = ""
 
-        // Check if there's a .pixi file that points to the project directory
+        // Check for a `.pixi` marker *file* that points to the project directory
+        // (written for the manifest-file case). Note: `pixi install` also creates
+        // a `.pixi` *directory* for the env itself, so test for a regular file.
         final pixiFile = envPath.resolve('.pixi')
-        if (pixiFile.exists()) {
+        if (Files.isRegularFile(pixiFile)) {
             // Read the project directory path
             final projectDir = pixiFile.text.trim()
             result += "cd ${Escape.path(projectDir as String)} && "

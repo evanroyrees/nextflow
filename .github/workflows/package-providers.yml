@@ -100,8 +100,13 @@ jobs:
       - name: Install littler (install2.r)
         if: matrix.provider == 'install2r'
         run: |
-          Rscript -e 'install.packages("littler")'
-          sudo ln -sf "$(Rscript -e 'cat(system.file("examples/install2.r", package="littler"))')" /usr/local/bin/install2.r
+          # install2.r ships with littler and depends on docopt; expose both the
+          # littler `r` interpreter (its shebang) and the install2.r script on PATH
+          Rscript -e 'install.packages(c("littler","docopt"), repos="https://cloud.r-project.org")'
+          RBIN=$(Rscript -e 'cat(system.file("bin","r",package="littler"))')
+          EX=$(Rscript -e 'cat(system.file("examples",package="littler"))')
+          sudo ln -sf "$RBIN" /usr/local/bin/r
+          sudo ln -sf "$EX/install2.r" /usr/local/bin/install2.r
 
       # ---- nf-test ------------------------------------------------------------
       - name: Install nf-test

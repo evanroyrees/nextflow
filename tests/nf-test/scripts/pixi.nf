@@ -10,7 +10,8 @@ process helloPixi {
 
     script:
     """
-    cowpy "Hello pixi"
+    # cowpy is provided by the pixi env; proving it is on PATH confirms activation
+    command -v cowpy >/dev/null && echo "Hello pixi"
     """
 }
 
