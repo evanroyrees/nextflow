@@ -108,15 +108,7 @@ jobs:
       commit_message: ${{ steps.get_commit_message.outputs.commit_message }}
 
   test:
-    # The `test_integration` and `test_parser_v2` modes run validation/test.sh,
-    # which executes the REMOTE `nextflow-io/rnaseq-nf` pipeline and reads remote
-    # project manifests. On forks this fails for environmental reasons (no
-    # NXF_GITHUB_ACCESS_TOKEN -> GitHub API rate limit; rnaseq-nf requires the
-    # `nextflow.preview.output` flag against this dev build) -- unrelated to the
-    # code under test. Like the secret-gated test_aws/azure/google modes, restrict
-    # these two remote-dependent modes to the canonical repository so they skip on
-    # forks and still run upstream.
-    if: ${{ !contains(needs.build.outputs.commit_message, '[ci fast]') && !(github.repository != 'nextflow-io/nextflow' && (matrix.test_mode == 'test_integration' || matrix.test_mode == 'test_parser_v2')) }}
+    if: ${{ !contains(needs.build.outputs.commit_message, '[ci fast]') }}
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -149,6 +141,14 @@ jobs:
           cache: gradle
 
       - name: Run tests
+        # The test_integration / test_parser_v2 modes run validation/test.sh, which
+        # executes the REMOTE nextflow-io/rnaseq-nf pipeline and reads remote project
+        # manifests. On forks these fail environmentally (no NXF_GITHUB_ACCESS_TOKEN
+        # -> GitHub API rate limit; rnaseq-nf requires nextflow.preview.output against
+        # this dev build) -- unrelated to the code under test. Mirroring the secret-
+        # gated aws/azure/google modes, run these two remote-dependent modes only on
+        # the canonical repository; they are skipped (job stays green) on forks.
+        if: ${{ github.repository == 'nextflow-io/nextflow' || (matrix.test_mode != 'test_integration' && matrix.test_mode != 'test_parser_v2') }}
         run: |
           env | sort
           # configure test env
