@@ -87,4 +87,140 @@ class NixCacheTest extends Specification {
         folder?.deleteDir()
     }
 
+    def 'should build the nix command for a multiple-package list' () {
+        // NOTE: nix does NOT support manifest files. A package list is space-separated
+        // and each bare token is mapped to `<flakeRef>#<token>`; there is no custom-named
+        // manifest-file success path to test (a slash-path is treated as an installable,
+        // see the 'path-with-slash' test below).
+        given:
+        def folder = Files.createTempDirectory('test')
+        def prefixPath = folder.resolve('env-multi')
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalNixEnv0('hello samtools', prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('profile install') && c.contains('nixpkgs#hello') && c.contains('nixpkgs#samtools')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should not prepend the flake ref to a token that already has one' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def prefixPath = folder.resolve('env-flakeref')
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        // a fully-qualified installable already contains '#' and must pass through unchanged
+        cache.createLocalNixEnv0('github:owner/repo#hello', prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('github:owner/repo#hello') && !c.contains('nixpkgs#github:')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should hash a slash-path that is not an existing directory as an installable, not a manifest file' () {
+        // nix has no manifest-file concept: a path-like spec that is not an existing
+        // directory falls through to the normal installable-tokenisation path and is
+        // hashed into a cache dir (it is NOT read as a file).
+        given:
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+        def BASE = Paths.get('/nix/envs')
+
+        when:
+        def prefix = cache.nixPrefixPath('/does/not/exist/env.nix')
+        then:
+        1 * cache.getCacheDir() >> BASE
+        prefix.toString().startsWith('/nix/envs/env-')
+    }
+
+    def 'should pass a slash-path straight through as an installable in the command' () {
+        // the path is tokenised and prefixed with the flake ref (NOT read as a manifest)
+        given:
+        def folder = Files.createTempDirectory('test')
+        def prefixPath = folder.resolve('env-slash')
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+        cache.@installOptions = null
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalNixEnv0('/does/not/exist/env.nix', prefixPath)
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('nixpkgs#/does/not/exist/env.nix')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should return an existing profile directory as-is without hashing' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def profileDir = folder.resolve('my-profile')
+        Files.createDirectory(profileDir)
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+
+        when:
+        def prefix = cache.nixPrefixPath(profileDir.toString())
+        then:
+        // an existing directory path is used directly as the profile, never cache-hashed
+        0 * cache.getCacheDir()
+        prefix == profileDir
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should apply a per-process install-options override in the command' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def prefixPath = folder.resolve('env-ovr')
+        def cache = Spy(NixCache)
+        cache.@flakeRef = 'nixpkgs'
+        cache.@installOptions = '--from-config'   // config-level default
+        cache.@createTimeout = Duration.of('20min')
+
+        when:
+        cache.createLocalNixEnv0('bwa', prefixPath, '--offline')
+        then:
+        1 * cache.runCommand({ String c ->
+            c.contains('--offline') && !c.contains('--from-config')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should include the install-options override in the env hash' () {
+        given:
+        def base = Spy(NixCache); base.@flakeRef = 'nixpkgs'
+        def ovr  = Spy(NixCache); ovr.@flakeRef = 'nixpkgs'
+        def BASE = Paths.get('/nix/envs')
+
+        when:
+        def p1 = base.nixPrefixPath('bwa')
+        def p2 = ovr.nixPrefixPath('bwa', '--offline')
+        then:
+        _ * base.getCacheDir() >> BASE
+        _ * ovr.getCacheDir() >> BASE
+        p1 != p2
+    }
+
 }

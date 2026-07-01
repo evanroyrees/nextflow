@@ -22,6 +22,10 @@ import nextflow.packages.PackageSpec
 import spock.lang.Specification
 
 /**
+ * NOTE: install2.r has no concept of a manifest/environment file -- packages are
+ * always passed as bare names on the command line. There is therefore no
+ * custom-named-manifest success test here; a path is only ever treated as a
+ * package name (or, in the cache, as a verbatim library dir when it exists).
  *
  * @author Evan Floden
  */
@@ -79,7 +83,34 @@ class Install2rPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(new PackageSpec('install2r', ['dplyr', 'ggplot2']))
         then:
-        1 * cache.getCachePathFor('dplyr ggplot2') >> Paths.get('/work/install2r/env-abc')
+        1 * cache.getCachePathFor('dplyr ggplot2', null) >> Paths.get('/work/install2r/env-abc')
+    }
+
+    def 'should delegate a multi-package list joined by spaces to the cache' () {
+        given:
+        def config = new Install2rConfig([:], [:])
+        def provider = new Install2rPackageProvider(config)
+        def cache = Mock(Install2rCache)
+        provider.@cache = cache
+
+        when:
+        provider.createEnvironment(new PackageSpec('install2r', ['dplyr', 'ggplot2', 'tidyr']))
+        then:
+        1 * cache.getCachePathFor('dplyr ggplot2 tidyr', null) >> Paths.get('/work/install2r/env-multi')
+    }
+
+    def 'should pass per-process install options as an override to the cache' () {
+        given:
+        def config = new Install2rConfig([:], [:])
+        def provider = new Install2rPackageProvider(config)
+        def cache = Mock(Install2rCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('install2r', ['dplyr'], [installOptions: '--repos http://mirror'])
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('dplyr', '--repos http://mirror') >> Paths.get('/work/install2r/env-ovr')
     }
 
     def 'should report config' () {

@@ -140,7 +140,7 @@ class Install2rCache {
      * @return the install2.r unique prefix {@link Path} where the library is created
      */
     @PackageScope
-    Path install2rPrefixPath(String spec) {
+    Path install2rPrefixPath(String spec, String installOptionsOverride = null) {
         assert spec
 
         // it's interpreted as a user provided library directory
@@ -148,7 +148,11 @@ class Install2rCache {
             return spec as Path
         }
 
-        final hash = CacheHelper.hasher(spec).hash().toString()
+        String content = spec
+        // a per-process install-options override yields a distinct environment
+        if( installOptionsOverride ) content += "\nopts:$installOptionsOverride"
+
+        final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
     }
 
@@ -160,7 +164,7 @@ class Install2rCache {
      * @return the install2.r library prefix {@link Path}
      */
     @PackageScope
-    Path createLocalInstall2rEnv(String spec, Path prefixPath) {
+    Path createLocalInstall2rEnv(String spec, Path prefixPath, String installOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "install2.r found local env for environment=$spec; path=$prefixPath"
@@ -173,7 +177,7 @@ class Install2rCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalInstall2rEnv0(spec, prefixPath) }
+            mutex .lock { createLocalInstall2rEnv0(spec, prefixPath, installOptionsOverride) }
         }
         finally {
             file.delete()
@@ -183,7 +187,7 @@ class Install2rCache {
     }
 
     @PackageScope
-    Path createLocalInstall2rEnv0(String spec, Path prefixPath) {
+    Path createLocalInstall2rEnv0(String spec, Path prefixPath, String installOptionsOverride = null) {
         if( prefixPath.isDirectory() ) {
             log.debug "install2.r found local env for environment=$spec; path=$prefixPath"
             return prefixPath
@@ -191,7 +195,9 @@ class Install2rCache {
 
         log.info "Creating env using install2.r: $spec [cache $prefixPath]"
 
-        def opts = installOptions ? "${installOptions} " : ''
+        // per-process `options` override the config-level `install2r.installOptions`
+        final effectiveOptions = installOptionsOverride ?: installOptions
+        def opts = effectiveOptions ? "${effectiveOptions} " : ''
         def repoOpt = repos ? "-r ${Escape.cli(repos)} " : ''
         // --error makes a failed package install exit non-zero (install2.r warns
         // but exits 0 by default), so a broken env is detected instead of cached
@@ -244,8 +250,8 @@ class Install2rCache {
      *      The {@link DataflowVariable} which hold (and create) the local library
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String spec) {
-        final prefixPath = install2rPrefixPath(spec)
+    DataflowVariable<Path> getLazyImagePath(String spec, String installOptionsOverride = null) {
+        final prefixPath = install2rPrefixPath(spec, installOptionsOverride)
         final install2rEnvPath = prefixPath.toString()
         if( install2rEnvPath in install2rPrefixPaths ) {
             log.trace "install2.r found local environment `$spec`"
@@ -255,7 +261,7 @@ class Install2rCache {
         synchronized (install2rPrefixPaths) {
             def result = install2rPrefixPaths[install2rEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalInstall2rEnv(spec, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalInstall2rEnv(spec, prefixPath, installOptionsOverride) })
                 install2rPrefixPaths[install2rEnvPath] = result
             }
             else {
@@ -274,8 +280,8 @@ class Install2rCache {
      * @param spec The install2.r package string
      * @return the local library path prefix {@link Path}
      */
-    Path getCachePathFor(String spec) {
-        def promise = getLazyImagePath(spec)
+    Path getCachePathFor(String spec, String installOptionsOverride = null) {
+        def promise = getLazyImagePath(spec, installOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

@@ -79,7 +79,53 @@ class NixPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(new PackageSpec('nix', ['bwa', 'samtools']))
         then:
-        1 * cache.getCachePathFor('bwa samtools') >> Paths.get('/work/nix/env-abc')
+        1 * cache.getCachePathFor('bwa samtools', null) >> Paths.get('/work/nix/env-abc')
+    }
+
+    def 'should delegate a single-package entry to the cache' () {
+        // second valid-config shape: a single-element package list
+        given:
+        def config = new NixConfig([:], [:])
+        def provider = new NixPackageProvider(config)
+        def cache = Mock(NixCache)
+        provider.@cache = cache
+
+        when:
+        provider.createEnvironment(new PackageSpec('nix', ['hello']))
+        then:
+        1 * cache.getCachePathFor('hello', null) >> Paths.get('/work/nix/env-hello')
+    }
+
+    def 'should delegate an environment-file (profile directory) spec to the cache' () {
+        // valid-config shape: an existing Nix profile directory supplied via `environment`.
+        // NOTE: nix does NOT support manifest files -- `environment` here is a profile dir
+        // path, which is forwarded verbatim to the cache (the cache decides whether it is an
+        // existing directory or an installable).
+        given:
+        def config = new NixConfig([:], [:])
+        def provider = new NixPackageProvider(config)
+        def cache = Mock(NixCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('nix').withEnvironment('/opt/nix/my-profile')
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('/opt/nix/my-profile', null) >> Paths.get('/opt/nix/my-profile')
+    }
+
+    def 'should pass per-process install options as an override to the cache' () {
+        given:
+        def config = new NixConfig([:], [:])
+        def provider = new NixPackageProvider(config)
+        def cache = Mock(NixCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('nix', ['bwa'], [installOptions: '--offline'])
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('bwa', '--offline') >> Paths.get('/work/nix/env-ovr')
     }
 
     def 'should report config' () {

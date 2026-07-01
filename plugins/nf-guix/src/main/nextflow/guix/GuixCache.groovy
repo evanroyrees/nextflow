@@ -134,7 +134,7 @@ class GuixCache {
      * @return the GNU Guix unique prefix {@link Path} where the env is created
      */
     @PackageScope
-    Path guixPrefixPath(String spec) {
+    Path guixPrefixPath(String spec, String installOptionsOverride = null) {
         assert spec
 
         // it's interpreted as user provided prefix directory
@@ -145,6 +145,10 @@ class GuixCache {
         // for a manifest file (manifest.scm) hash its content so the cache is
         // invalidated when the file changes
         String content = isManifestFile(spec) ? (spec as Path).text : spec
+
+        // a per-process install-options override yields a distinct environment
+        if( installOptionsOverride ) content += "\nopts:$installOptionsOverride"
+
         final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
     }
@@ -162,7 +166,7 @@ class GuixCache {
      * @return the GNU Guix environment prefix {@link Path}
      */
     @PackageScope
-    Path createLocalGuixEnv(String spec, Path prefixPath) {
+    Path createLocalGuixEnv(String spec, Path prefixPath, String installOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "GNU Guix found local env for environment=$spec; path=$prefixPath"
@@ -175,7 +179,7 @@ class GuixCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalGuixEnv0(spec, prefixPath) }
+            mutex .lock { createLocalGuixEnv0(spec, prefixPath, installOptionsOverride) }
         }
         finally {
             file.delete()
@@ -185,7 +189,7 @@ class GuixCache {
     }
 
     @PackageScope
-    Path createLocalGuixEnv0(String spec, Path prefixPath) {
+    Path createLocalGuixEnv0(String spec, Path prefixPath, String installOptionsOverride = null) {
         if( prefixPath.isDirectory() ) {
             log.debug "GNU Guix found local env for environment=$spec; path=$prefixPath"
             return prefixPath
@@ -193,7 +197,9 @@ class GuixCache {
 
         log.info "Creating env using GNU Guix: $spec [cache $prefixPath]"
 
-        String opts = installOptions ? "$installOptions " : ''
+        // per-process `options` override the config-level `guix.installOptions`
+        final effectiveOptions = installOptionsOverride ?: installOptions
+        String opts = effectiveOptions ? "$effectiveOptions " : ''
         def cmd = isManifestFile(spec)
             ? "guix package --profile=${Escape.path(prefixPath)} ${opts}--manifest=${Escape.path(spec as Path)}"
             : "guix package --profile=${Escape.path(prefixPath)} ${opts}--install $spec"
@@ -245,8 +251,8 @@ class GuixCache {
      *      The {@link DataflowVariable} which hold (and create) the local environment
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String spec) {
-        final prefixPath = guixPrefixPath(spec)
+    DataflowVariable<Path> getLazyImagePath(String spec, String installOptionsOverride = null) {
+        final prefixPath = guixPrefixPath(spec, installOptionsOverride)
         final guixEnvPath = prefixPath.toString()
         if( guixEnvPath in guixPrefixPaths ) {
             log.trace "GNU Guix found local environment `$spec`"
@@ -256,7 +262,7 @@ class GuixCache {
         synchronized (guixPrefixPaths) {
             def result = guixPrefixPaths[guixEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalGuixEnv(spec, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalGuixEnv(spec, prefixPath, installOptionsOverride) })
                 guixPrefixPaths[guixEnvPath] = result
             }
             else {
@@ -275,8 +281,8 @@ class GuixCache {
      * @param spec The GNU Guix environment string
      * @return the local environment path prefix {@link Path}
      */
-    Path getCachePathFor(String spec) {
-        def promise = getLazyImagePath(spec)
+    Path getCachePathFor(String spec, String installOptionsOverride = null) {
+        def promise = getLazyImagePath(spec, installOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

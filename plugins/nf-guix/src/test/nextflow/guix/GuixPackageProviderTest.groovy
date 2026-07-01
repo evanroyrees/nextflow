@@ -80,7 +80,49 @@ class GuixPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(new PackageSpec('guix', ['bwa', 'samtools']))
         then:
-        1 * cache.getCachePathFor('bwa samtools') >> Paths.get('/work/guix/env-abc')
+        1 * cache.getCachePathFor('bwa samtools', null) >> Paths.get('/work/guix/env-abc')
+    }
+
+    def 'should delegate a single package entry to the cache' () {
+        given:
+        def config = new GuixConfig([:], [:])
+        def provider = new GuixPackageProvider(config)
+        def cache = Mock(GuixCache)
+        provider.@cache = cache
+
+        when:
+        provider.createEnvironment(new PackageSpec('guix', ['bwa']))
+        then:
+        1 * cache.getCachePathFor('bwa', null) >> Paths.get('/work/guix/env-abc')
+    }
+
+    def 'should delegate an environment-file spec to the cache' () {
+        given:
+        def config = new GuixConfig([:], [:])
+        def provider = new GuixPackageProvider(config)
+        def cache = Mock(GuixCache)
+        provider.@cache = cache
+        // an environment-file spec is a distinct valid config shape from an entries list
+        def spec = new PackageSpec('guix').withEnvironment('/path/to/manifest.scm')
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('/path/to/manifest.scm', null) >> Paths.get('/work/guix/env-file')
+    }
+
+    def 'should pass per-process install options as an override to the cache' () {
+        given:
+        def config = new GuixConfig([:], [:])
+        def provider = new GuixPackageProvider(config)
+        def cache = Mock(GuixCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('guix', ['bwa'], [installOptions: '--no-grafts'])
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('bwa', '--no-grafts') >> Paths.get('/work/guix/env-ovr')
     }
 
     def 'should report config' () {

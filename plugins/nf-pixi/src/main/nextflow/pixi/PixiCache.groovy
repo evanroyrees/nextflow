@@ -144,7 +144,7 @@ class PixiCache {
      * @return the pixi unique prefix {@link Path} where the env is created
      */
     @PackageScope
-    Path pixiPrefixPath(String pixiEnv) {
+    Path pixiPrefixPath(String pixiEnv, String createOptionsOverride = null) {
         assert pixiEnv
 
         String content
@@ -196,6 +196,9 @@ class PixiCache {
             content = pixiEnv
         }
 
+        // a per-process create-options override yields a distinct environment
+        if( createOptionsOverride ) content += "\nopts:$createOptionsOverride"
+
         final hash = CacheHelper.hasher(content).hash().toString()
         getCacheDir().resolve("$name-$hash")
     }
@@ -207,7 +210,7 @@ class PixiCache {
      * @return the pixi environment prefix {@link Path}
      */
     @PackageScope
-    Path createLocalPixiEnv(String pixiEnv, Path prefixPath) {
+    Path createLocalPixiEnv(String pixiEnv, Path prefixPath, String createOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "pixi found local env for environment=$pixiEnv; path=$prefixPath"
@@ -220,7 +223,7 @@ class PixiCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalPixiEnv0(pixiEnv, prefixPath) }
+            mutex .lock { createLocalPixiEnv0(pixiEnv, prefixPath, createOptionsOverride) }
         }
         finally {
             file.delete()
@@ -234,7 +237,6 @@ class PixiCache {
         Paths.get(envFile).toAbsolutePath()
     }
 
-    @PackageScope
     /**
      * The conda/pixi platform string for the current host (e.g. {@code linux-64},
      * {@code osx-arm64}). Pixi manifests must declare the platforms they support.
@@ -272,10 +274,12 @@ class PixiCache {
         return lines.join('\n')
     }
 
-    Path createLocalPixiEnv0(String pixiEnv, Path prefixPath) {
+    Path createLocalPixiEnv0(String pixiEnv, Path prefixPath, String createOptionsOverride = null) {
         log.info "Creating env using pixi: $pixiEnv [cache $prefixPath]"
 
-        String opts = createOptions ? "$createOptions " : ''
+        // per-process `options` override the config-level `pixi.createOptions`
+        final effectiveOptions = createOptionsOverride ?: createOptions
+        String opts = effectiveOptions ? "$effectiveOptions " : ''
 
         def cmd
         if( isTomlFilePath(pixiEnv) || isLockFilePath(pixiEnv) ) {
@@ -363,8 +367,8 @@ ${toTomlDependencies(pixiEnv)}
      *      The {@link DataflowVariable} which hold (and pull) the local image file
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String pixiEnv) {
-        final prefixPath = pixiPrefixPath(pixiEnv)
+    DataflowVariable<Path> getLazyImagePath(String pixiEnv, String createOptionsOverride = null) {
+        final prefixPath = pixiPrefixPath(pixiEnv, createOptionsOverride)
         final pixiEnvPath = prefixPath.toString()
         if( pixiEnvPath in pixiPrefixPaths ) {
             log.trace "pixi found local environment `$pixiEnv`"
@@ -374,7 +378,7 @@ ${toTomlDependencies(pixiEnv)}
         synchronized (pixiPrefixPaths) {
             def result = pixiPrefixPaths[pixiEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalPixiEnv(pixiEnv, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalPixiEnv(pixiEnv, prefixPath, createOptionsOverride) })
                 pixiPrefixPaths[pixiEnvPath] = result
             }
             else {
@@ -393,8 +397,8 @@ ${toTomlDependencies(pixiEnv)}
      * @param pixiEnv The pixi environment string
      * @return the local environment path prefix {@link Path}
      */
-    Path getCachePathFor(String pixiEnv) {
-        def promise = getLazyImagePath(pixiEnv)
+    Path getCachePathFor(String pixiEnv, String createOptionsOverride = null) {
+        def promise = getLazyImagePath(pixiEnv, createOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

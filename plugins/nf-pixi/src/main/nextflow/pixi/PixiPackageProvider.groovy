@@ -34,7 +34,7 @@ import nextflow.util.Escape
 @CompileStatic
 class PixiPackageProvider implements PackageProvider {
 
-    private final PixiCache cache
+    private PixiCache cache
     private final PixiConfig config
 
     PixiPackageProvider(PixiConfig config) {
@@ -76,7 +76,9 @@ class PixiPackageProvider implements PackageProvider {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(pixiEnv)
+        // per-process `options: [createOptions: '...']` overrides pixi.createOptions
+        final createOptionsOverride = spec.options?.get('createOptions') as String
+        return cache.getCachePathFor(pixiEnv, createOptionsOverride)
     }
 
     @Override

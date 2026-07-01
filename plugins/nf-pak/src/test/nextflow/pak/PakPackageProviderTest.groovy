@@ -79,7 +79,35 @@ class PakPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(new PackageSpec('pak', ['dplyr', 'ggplot2']))
         then:
-        1 * cache.getCachePathFor('dplyr ggplot2') >> Paths.get('/work/pak/env-abc')
+        1 * cache.getCachePathFor('dplyr ggplot2', null) >> Paths.get('/work/pak/env-abc')
+    }
+
+    def 'should delegate an environment library directory to the cache' () {
+        given:
+        def config = new PakConfig([:], [:])
+        def provider = new PakPackageProvider(config)
+        def cache = Mock(PakCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('pak', []).withEnvironment('/opt/R/lib')
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('/opt/R/lib', null) >> Paths.get('/opt/R/lib')
+    }
+
+    def 'should pass per-process install options as an override to the cache' () {
+        given:
+        def config = new PakConfig([:], [:])
+        def provider = new PakPackageProvider(config)
+        def cache = Mock(PakCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('pak', ['dplyr'], [installOptions: 'upgrade = TRUE'])
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('dplyr', 'upgrade = TRUE') >> Paths.get('/work/pak/env-ovr')
     }
 
     def 'should report config' () {

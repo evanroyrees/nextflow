@@ -76,7 +76,9 @@ class GuixPackageProvider implements PackageProvider {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(guixEnv)
+        // per-process `options: [installOptions: '...']` overrides guix.installOptions
+        final installOptionsOverride = spec.options?.get('installOptions') as String
+        return cache.getCachePathFor(guixEnv, installOptionsOverride)
     }
 
     @Override

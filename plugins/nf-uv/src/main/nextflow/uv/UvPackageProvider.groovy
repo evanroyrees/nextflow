@@ -80,7 +80,9 @@ class UvPackageProvider implements PackageProvider {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(uvEnv)
+        // per-process `options: [installOptions: '...']` overrides uv.installOptions
+        final installOptionsOverride = spec.options?.get('installOptions') as String
+        return cache.getCachePathFor(uvEnv, installOptionsOverride)
     }
 
     @Override

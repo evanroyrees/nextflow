@@ -189,6 +189,32 @@ packages {
 
 An explicit `package` directive always takes precedence over auto-detection. Other providers expose their manifest file names through the provider plugin API (`getManifestFileNames()`), so additional managers can opt in to auto-detection.
 
+### Custom-named manifest files
+
+Auto-detection only looks for the conventional file names above. If your manifest has a different name (e.g. `env.yml` instead of `environment.yml`), pass an explicit path to the directive and the provider will still recognise it — subject to the file-type rules each tool understands:
+
+```nextflow
+process customManifest {
+    package "${moduleDir}/env.yml", provider: "conda"   // custom name, still a conda YAML
+
+    script:
+    """
+    python analysis.py
+    """
+}
+```
+
+| Provider | Recognised as a manifest file when the path ends with |
+|---|---|
+| `conda` | `.yml`, `.yaml` (conda env file) or `.txt` (package list) — any base name; a remote `.yml`/`.yaml` URL also works |
+| `uv` | `.txt`, `.in` (requirements) — any base name; or a path ending in `pyproject.toml` |
+| `pixi` | `.toml`, `.lock` — any base name |
+| `guix` | any existing file (used as a `--manifest` file) |
+| `pak` | any existing file (installed as a package `DESCRIPTION` in its directory) |
+| `nix`, `install2r` | manifest files are **not** supported — pass explicit package/flake refs or names |
+
+A path that doesn't match these rules is treated as a literal package specification.
+
 ### Per-Provider Options
 
 Some providers support additional options:
@@ -205,6 +231,31 @@ process withOptions {
     """
 }
 ```
+
+### Per-process options (override config)
+
+Each provider reads its install/create options from its config scope by default
+(e.g. `uv.installOptions`, `conda.createOptions`). A process can override that
+default for its own environment using the `options` map in the directive. The
+key matches the provider's config option name — `installOptions` for uv, nix,
+guix, pak and install2r; `createOptions` for conda and pixi — so it's "the same
+knob, two scopes":
+
+```nextflow
+process fastResolve {
+    // overrides uv.installOptions for this process only; config is the fallback
+    package "numpy pandas", provider: "uv", options: [installOptions: "--no-cache"]
+
+    script:
+    """
+    python -c "import numpy, pandas"
+    """
+}
+```
+
+A per-process override participates in the environment cache key, so two
+processes that request the same packages with different options get distinct
+environments.
 
 ## Supported Providers
 

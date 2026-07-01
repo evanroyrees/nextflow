@@ -139,7 +139,7 @@ class NixCache {
      * @return the Nix unique prefix {@link Path} where the env is created
      */
     @PackageScope
-    Path nixPrefixPath(String spec) {
+    Path nixPrefixPath(String spec, String installOptionsOverride = null) {
         assert spec
 
         // it's interpreted as a user provided profile directory
@@ -148,6 +148,10 @@ class NixCache {
         }
 
         String content = spec + "\nflake:" + flakeRef
+
+        // a per-process install-options override yields a distinct environment
+        if( installOptionsOverride ) content += "\nopts:$installOptionsOverride"
+
         final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
     }
@@ -160,7 +164,7 @@ class NixCache {
      * @return the Nix environment prefix {@link Path}
      */
     @PackageScope
-    Path createLocalNixEnv(String spec, Path prefixPath) {
+    Path createLocalNixEnv(String spec, Path prefixPath, String installOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "Nix found local env for environment=$spec; path=$prefixPath"
@@ -173,7 +177,7 @@ class NixCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalNixEnv0(spec, prefixPath) }
+            mutex .lock { createLocalNixEnv0(spec, prefixPath, installOptionsOverride) }
         }
         finally {
             file.delete()
@@ -183,7 +187,7 @@ class NixCache {
     }
 
     @PackageScope
-    Path createLocalNixEnv0(String spec, Path prefixPath) {
+    Path createLocalNixEnv0(String spec, Path prefixPath, String installOptionsOverride = null) {
         if( prefixPath.isDirectory() ) {
             log.debug "Nix found local env for environment=$spec; path=$prefixPath"
             return prefixPath
@@ -196,7 +200,9 @@ class NixCache {
             t.contains('#') ? t : "${flakeRef}#${t}".toString()
         }.join(' ')
 
-        String opts = installOptions ? "$installOptions " : ''
+        // per-process `options` override the config-level `nix.installOptions`
+        final effectiveOptions = installOptionsOverride ?: installOptions
+        String opts = effectiveOptions ? "$effectiveOptions " : ''
         def cmd = "nix --extra-experimental-features 'nix-command flakes' profile install --profile ${Escape.path(prefixPath)} ${opts}${installables}"
 
         try {
@@ -246,8 +252,8 @@ class NixCache {
      *      The {@link DataflowVariable} which hold (and create) the local environment
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String spec) {
-        final prefixPath = nixPrefixPath(spec)
+    DataflowVariable<Path> getLazyImagePath(String spec, String installOptionsOverride = null) {
+        final prefixPath = nixPrefixPath(spec, installOptionsOverride)
         final nixEnvPath = prefixPath.toString()
         if( nixEnvPath in nixPrefixPaths ) {
             log.trace "Nix found local environment `$spec`"
@@ -257,7 +263,7 @@ class NixCache {
         synchronized (nixPrefixPaths) {
             def result = nixPrefixPaths[nixEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalNixEnv(spec, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalNixEnv(spec, prefixPath, installOptionsOverride) })
                 nixPrefixPaths[nixEnvPath] = result
             }
             else {
@@ -276,8 +282,8 @@ class NixCache {
      * @param spec The Nix environment string
      * @return the local environment path prefix {@link Path}
      */
-    Path getCachePathFor(String spec) {
-        def promise = getLazyImagePath(spec)
+    Path getCachePathFor(String spec, String installOptionsOverride = null) {
+        def promise = getLazyImagePath(spec, installOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

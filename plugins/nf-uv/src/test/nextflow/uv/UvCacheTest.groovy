@@ -192,6 +192,51 @@ class UvCacheTest extends Specification {
         folder?.deleteDir()
     }
 
+    def 'should create the correct uv venv command for a custom-named requirements file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        // non-conventional name but supported `.in` extension
+        def reqFile = folder.resolve('deps.in')
+        reqFile.text = 'numpy==1.24.0\npandas>=2.0'
+        def prefixPath = folder.resolve('env-abc123')
+        def cache = Spy(UvCache)
+        cache.@installOptions = null
+        cache.@pythonVersion = null
+        cache.@createTimeout = nextflow.util.Duration.of('20min')
+
+        when:
+        cache.createLocalUvEnv0(reqFile.toString(), prefixPath)
+        then:
+        1 * cache.runCommand({ String cmd ->
+            cmd.contains('uv pip install') && cmd.contains('-r') && cmd.contains('deps.in')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should create the correct uv venv command for a pyproject file' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def pyprojectFile = folder.resolve('pyproject.toml')
+        pyprojectFile.text = '[project]\nname = "demo"\ndependencies = ["numpy"]\n'
+        def prefixPath = folder.resolve('env-abc123')
+        def cache = Spy(UvCache)
+        cache.@installOptions = null
+        cache.@pythonVersion = null
+        cache.@createTimeout = nextflow.util.Duration.of('20min')
+
+        when:
+        cache.createLocalUvEnv0(pyprojectFile.toString(), prefixPath)
+        then:
+        1 * cache.runCommand({ String cmd ->
+            cmd.contains('uv venv') && cmd.contains('uv pip install') && cmd.contains('-r') && cmd.contains('pyproject.toml')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
     def 'should include python version in hash' () {
         given:
         def cache1 = Spy(UvCache)
@@ -207,6 +252,41 @@ class UvCacheTest extends Specification {
         _ * cache1.getCacheDir() >> BASE
         _ * cache2.getCacheDir() >> BASE
         prefix1 != prefix2
+    }
+
+    def 'should apply a per-process install-options override in the command' () {
+        given:
+        def folder = Files.createTempDirectory('test')
+        def prefixPath = folder.resolve('env-ovr')
+        def cache = Spy(UvCache)
+        cache.@installOptions = '--from-config'   // config-level default
+        cache.@pythonVersion = null
+        cache.@createTimeout = nextflow.util.Duration.of('20min')
+
+        when:
+        cache.createLocalUvEnv0('numpy', prefixPath, '--no-cache')
+        then:
+        1 * cache.runCommand({ String cmd ->
+            cmd.contains('--no-cache') && !cmd.contains('--from-config')
+        }) >> 0
+
+        cleanup:
+        folder?.deleteDir()
+    }
+
+    def 'should include the install-options override in the env hash' () {
+        given:
+        def base = Spy(UvCache); base.@installOptions = null; base.@pythonVersion = null
+        def ovr  = Spy(UvCache); ovr.@installOptions = null;  ovr.@pythonVersion = null
+        def BASE = Paths.get('/uv/envs')
+
+        when:
+        def p1 = base.uvPrefixPath('numpy')
+        def p2 = ovr.uvPrefixPath('numpy', '--no-cache')
+        then:
+        _ * base.getCacheDir() >> BASE
+        _ * ovr.getCacheDir() >> BASE
+        p1 != p2
     }
 
 }

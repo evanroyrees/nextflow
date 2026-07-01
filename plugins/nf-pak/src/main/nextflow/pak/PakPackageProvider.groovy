@@ -81,7 +81,9 @@ class PakPackageProvider implements PackageProvider {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(pakEnv)
+        // per-process `options: [installOptions: '...']` overrides pak.installOptions
+        final installOptionsOverride = spec.options?.get('installOptions') as String
+        return cache.getCachePathFor(pakEnv, installOptionsOverride)
     }
 
     @Override

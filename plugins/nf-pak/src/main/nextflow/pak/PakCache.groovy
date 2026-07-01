@@ -134,7 +134,7 @@ class PakCache {
      * @return the pak unique prefix {@link Path} where the env is created
      */
     @PackageScope
-    Path pakPrefixPath(String spec) {
+    Path pakPrefixPath(String spec, String installOptionsOverride = null) {
         assert spec
 
         // it's interpreted as a user provided library directory
@@ -145,6 +145,10 @@ class PakCache {
         // for a manifest file (renv.lock / DESCRIPTION) hash its content so the
         // cache is invalidated when the file changes
         String content = isManifestFile(spec) ? (spec as Path).text : spec
+
+        // a per-process install-options override yields a distinct environment
+        if( installOptionsOverride ) content += "\nopts:$installOptionsOverride"
+
         final hash = CacheHelper.hasher(content).hash().toString()
         return getCacheDir().resolve("env-$hash")
     }
@@ -162,7 +166,7 @@ class PakCache {
      * @return the pak environment prefix {@link Path}
      */
     @PackageScope
-    Path createLocalPakEnv(String spec, Path prefixPath) {
+    Path createLocalPakEnv(String spec, Path prefixPath, String installOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "pak found local env for environment=$spec; path=$prefixPath"
@@ -175,7 +179,7 @@ class PakCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalPakEnv0(spec, prefixPath) }
+            mutex .lock { createLocalPakEnv0(spec, prefixPath, installOptionsOverride) }
         }
         finally {
             file.delete()
@@ -185,7 +189,7 @@ class PakCache {
     }
 
     @PackageScope
-    Path createLocalPakEnv0(String spec, Path prefixPath) {
+    Path createLocalPakEnv0(String spec, Path prefixPath, String installOptionsOverride = null) {
         if( prefixPath.isDirectory() ) {
             log.debug "pak found local env for environment=$spec; path=$prefixPath"
             return prefixPath
@@ -193,7 +197,9 @@ class PakCache {
 
         log.info "Creating env using R pak: $spec [cache $prefixPath]"
 
-        def opts = installOptions ? ", ${installOptions}" : ''
+        // per-process `options` override the config-level `pak.installOptions`
+        final effectiveOptions = installOptionsOverride ?: installOptions
+        def opts = effectiveOptions ? ", ${effectiveOptions}" : ''
         def cmd
         if( isManifestFile(spec) ) {
             // a DESCRIPTION file: install the declared dependencies of the package
@@ -254,8 +260,8 @@ class PakCache {
      *      The {@link DataflowVariable} which hold (and create) the local environment
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String spec) {
-        final prefixPath = pakPrefixPath(spec)
+    DataflowVariable<Path> getLazyImagePath(String spec, String installOptionsOverride = null) {
+        final prefixPath = pakPrefixPath(spec, installOptionsOverride)
         final pakEnvPath = prefixPath.toString()
         if( pakEnvPath in pakPrefixPaths ) {
             log.trace "pak found local environment `$spec`"
@@ -265,7 +271,7 @@ class PakCache {
         synchronized (pakPrefixPaths) {
             def result = pakPrefixPaths[pakEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalPakEnv(spec, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalPakEnv(spec, prefixPath, installOptionsOverride) })
                 pakPrefixPaths[pakEnvPath] = result
             }
             else {
@@ -284,8 +290,8 @@ class PakCache {
      * @param spec The pak environment string
      * @return the local environment path prefix {@link Path}
      */
-    Path getCachePathFor(String spec) {
-        def promise = getLazyImagePath(spec)
+    Path getCachePathFor(String spec, String installOptionsOverride = null) {
+        def promise = getLazyImagePath(spec, installOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

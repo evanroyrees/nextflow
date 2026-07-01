@@ -79,7 +79,7 @@ class UvPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(new PackageSpec('uv', ['numpy', 'pandas']))
         then:
-        1 * cache.getCachePathFor('numpy pandas') >> Paths.get('/work/uv/env-abc')
+        1 * cache.getCachePathFor('numpy pandas', null) >> Paths.get('/work/uv/env-abc')
     }
 
     def 'should delegate an environment file to the cache' () {
@@ -93,7 +93,62 @@ class UvPackageProviderTest extends Specification {
         when:
         provider.createEnvironment(spec)
         then:
-        1 * cache.getCachePathFor('/path/to/requirements.txt') >> Paths.get('/work/uv/env-def')
+        1 * cache.getCachePathFor('/path/to/requirements.txt', null) >> Paths.get('/work/uv/env-def')
+    }
+
+    def 'should delegate a pyproject environment file to the cache' () {
+        given:
+        def config = new UvConfig([:], [:])
+        def provider = new UvPackageProvider(config)
+        def cache = Mock(UvCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('uv').withEnvironment('/path/to/pyproject.toml')
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('/path/to/pyproject.toml', null) >> Paths.get('/work/uv/env-pyp')
+    }
+
+    def 'should delegate a custom-named requirements env file to the cache' () {
+        given:
+        def config = new UvConfig([:], [:])
+        def provider = new UvPackageProvider(config)
+        def cache = Mock(UvCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('uv').withEnvironment('/path/to/deps.in')
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('/path/to/deps.in', null) >> Paths.get('/work/uv/env-deps')
+    }
+
+    def 'should delegate a single package entry to the cache' () {
+        given:
+        def config = new UvConfig([:], [:])
+        def provider = new UvPackageProvider(config)
+        def cache = Mock(UvCache)
+        provider.@cache = cache
+
+        when:
+        provider.createEnvironment(new PackageSpec('uv', ['numpy']))
+        then:
+        1 * cache.getCachePathFor('numpy', null) >> Paths.get('/work/uv/env-single')
+    }
+
+    def 'should pass per-process install options as an override to the cache' () {
+        given:
+        def config = new UvConfig([:], [:])
+        def provider = new UvPackageProvider(config)
+        def cache = Mock(UvCache)
+        provider.@cache = cache
+        def spec = new PackageSpec('uv', ['numpy'], [installOptions: '--no-cache'])
+
+        when:
+        provider.createEnvironment(spec)
+        then:
+        1 * cache.getCachePathFor('numpy', '--no-cache') >> Paths.get('/work/uv/env-ovr')
     }
 
     def 'should report config' () {

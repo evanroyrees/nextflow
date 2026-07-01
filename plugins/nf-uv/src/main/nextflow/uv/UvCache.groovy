@@ -151,7 +151,7 @@ class UvCache {
      * @return the uv unique prefix {@link Path} where the env is created
      */
     @PackageScope
-    Path uvPrefixPath(String uvEnv) {
+    Path uvPrefixPath(String uvEnv, String installOptionsOverride = null) {
         assert uvEnv
 
         String content
@@ -186,6 +186,9 @@ class UvCache {
         // include python version in hash if specified
         if( pythonVersion ) content += "\npython:$pythonVersion"
 
+        // a per-process install-options override yields a distinct environment
+        if( installOptionsOverride ) content += "\nopts:$installOptionsOverride"
+
         final hash = CacheHelper.hasher(content).hash().toString()
         getCacheDir().resolve("$name-$hash")
     }
@@ -198,7 +201,7 @@ class UvCache {
      * @return the uv environment prefix {@link Path}
      */
     @PackageScope
-    Path createLocalUvEnv(String uvEnv, Path prefixPath) {
+    Path createLocalUvEnv(String uvEnv, Path prefixPath, String installOptionsOverride = null) {
 
         if( prefixPath.isDirectory() ) {
             log.debug "uv found local env for environment=$uvEnv; path=$prefixPath"
@@ -211,7 +214,7 @@ class UvCache {
 
         final mutex = new FileMutex(target: file, timeout: createTimeout, waitMessage: wait, errorMessage: err)
         try {
-            mutex .lock { createLocalUvEnv0(uvEnv, prefixPath) }
+            mutex .lock { createLocalUvEnv0(uvEnv, prefixPath, installOptionsOverride) }
         }
         finally {
             file.delete()
@@ -226,7 +229,7 @@ class UvCache {
     }
 
     @PackageScope
-    Path createLocalUvEnv0(String uvEnv, Path prefixPath) {
+    Path createLocalUvEnv0(String uvEnv, Path prefixPath, String installOptionsOverride = null) {
         if( prefixPath.isDirectory() ) {
             log.debug "uv found local env for environment=$uvEnv; path=$prefixPath"
             return prefixPath
@@ -234,7 +237,9 @@ class UvCache {
 
         log.info "Creating env using uv: $uvEnv [cache $prefixPath]"
 
-        String opts = installOptions ? "$installOptions " : ''
+        // per-process `options` override the config-level `uv.installOptions`
+        final effectiveOptions = installOptionsOverride ?: installOptions
+        String opts = effectiveOptions ? "$effectiveOptions " : ''
         String pythonOpt = pythonVersion ? "--python $pythonVersion " : ''
 
         def cmd
@@ -299,8 +304,8 @@ class UvCache {
      *      The {@link DataflowVariable} which hold (and create) the local environment
      */
     @PackageScope
-    DataflowVariable<Path> getLazyImagePath(String uvEnv) {
-        final prefixPath = uvPrefixPath(uvEnv)
+    DataflowVariable<Path> getLazyImagePath(String uvEnv, String installOptionsOverride = null) {
+        final prefixPath = uvPrefixPath(uvEnv, installOptionsOverride)
         final uvEnvPath = prefixPath.toString()
         if( uvEnvPath in uvPrefixPaths ) {
             log.trace "uv found local environment `$uvEnv`"
@@ -310,7 +315,7 @@ class UvCache {
         synchronized (uvPrefixPaths) {
             def result = uvPrefixPaths[uvEnvPath]
             if( result == null ) {
-                result = new LazyDataflowVariable<Path>({ createLocalUvEnv(uvEnv, prefixPath) })
+                result = new LazyDataflowVariable<Path>({ createLocalUvEnv(uvEnv, prefixPath, installOptionsOverride) })
                 uvPrefixPaths[uvEnvPath] = result
             }
             else {
@@ -329,8 +334,8 @@ class UvCache {
      * @param uvEnv The uv environment string
      * @return the local environment path prefix {@link Path}
      */
-    Path getCachePathFor(String uvEnv) {
-        def promise = getLazyImagePath(uvEnv)
+    Path getCachePathFor(String uvEnv, String installOptionsOverride = null) {
+        def promise = getLazyImagePath(uvEnv, installOptionsOverride)
         def result = promise.getVal()
         if( promise.isError() )
             throw new IllegalStateException(promise.getError())

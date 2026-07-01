@@ -78,7 +78,9 @@ class NixPackageProvider implements PackageProvider {
             throw new IllegalArgumentException("Package spec must have either environment file or entries")
         }
 
-        return cache.getCachePathFor(env)
+        // per-process `options: [installOptions: '...']` overrides nix.installOptions
+        final installOptionsOverride = spec.options?.get('installOptions') as String
+        return cache.getCachePathFor(env, installOptionsOverride)
     }
 
     @Override
