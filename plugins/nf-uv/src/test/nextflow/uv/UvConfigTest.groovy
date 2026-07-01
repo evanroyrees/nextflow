@@ -19,10 +19,6 @@ package nextflow.uv
 import spock.lang.Specification
 import spock.lang.Unroll
 
-/**
- *
- * @author Evan Floden
- */
 class UvConfigTest extends Specification {
 
     @Unroll

@@ -23,8 +23,6 @@ import nextflow.packages.PackageProviderExtension
 
 /**
  * R pak package provider extension
- *
- * @author Evan Floden
  */
 @CompileStatic
 class PakProviderExtension implements PackageProviderExtension {

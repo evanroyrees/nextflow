@@ -23,8 +23,6 @@ import org.pf4j.PluginWrapper
 
 /**
  * Nextflow R pak Package Manager Plugin
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

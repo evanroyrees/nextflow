@@ -29,8 +29,6 @@ import nextflow.util.Escape
  *
  * Creates and activates Nix-managed environments from a package list
  * or an existing Nix profile directory.
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

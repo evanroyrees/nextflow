@@ -35,8 +35,6 @@ import nextflow.util.TestOnly
 
 /**
  * Handle Nix environment creation and caching
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

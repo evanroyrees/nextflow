@@ -19,10 +19,6 @@ package nextflow.guix
 import spock.lang.Specification
 import spock.lang.Unroll
 
-/**
- *
- * @author Evan Floden
- */
 class GuixConfigTest extends Specification {
 
     @Unroll

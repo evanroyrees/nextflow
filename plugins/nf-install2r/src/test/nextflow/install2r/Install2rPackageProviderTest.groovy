@@ -26,8 +26,6 @@ import spock.lang.Specification
  * always passed as bare names on the command line. There is therefore no
  * custom-named-manifest success test here; a path is only ever treated as a
  * package name (or, in the cache, as a verbatim library dir when it exists).
- *
- * @author Evan Floden
  */
 class Install2rPackageProviderTest extends Specification {
 

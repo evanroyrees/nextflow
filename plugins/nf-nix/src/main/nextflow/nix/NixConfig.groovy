@@ -27,8 +27,6 @@ import nextflow.util.Duration
 
 /**
  * Model Nix configuration
- *
- * @author Evan Floden
  */
 @ScopeName("nix")
 @Description("""

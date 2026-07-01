@@ -23,8 +23,6 @@ import org.pf4j.PluginWrapper
 
 /**
  * Nextflow GNU Guix Package Manager Plugin
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

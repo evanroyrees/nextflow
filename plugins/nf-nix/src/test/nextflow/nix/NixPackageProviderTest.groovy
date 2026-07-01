@@ -21,10 +21,6 @@ import java.nio.file.Paths
 import nextflow.packages.PackageSpec
 import spock.lang.Specification
 
-/**
- *
- * @author Evan Floden
- */
 class NixPackageProviderTest extends Specification {
 
     def 'should report provider name' () {

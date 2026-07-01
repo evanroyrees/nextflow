@@ -23,10 +23,6 @@ import nextflow.SysEnv
 import nextflow.util.Duration
 import spock.lang.Specification
 
-/**
- *
- * @author Evan Floden
- */
 class Install2rCacheTest extends Specification {
 
     def setupSpec() {

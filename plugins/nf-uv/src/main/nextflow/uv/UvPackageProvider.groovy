@@ -30,8 +30,6 @@ import nextflow.util.Escape
  * Creates and activates uv-managed Python virtual environments from a
  * package list, a requirements file, a pyproject.toml file, or an existing
  * virtual environment directory.
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

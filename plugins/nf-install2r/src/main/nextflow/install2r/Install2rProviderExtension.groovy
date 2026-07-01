@@ -23,8 +23,6 @@ import nextflow.packages.PackageProviderExtension
 
 /**
  * install2.r package provider extension
- *
- * @author Evan Floden
  */
 @CompileStatic
 class Install2rProviderExtension implements PackageProviderExtension {

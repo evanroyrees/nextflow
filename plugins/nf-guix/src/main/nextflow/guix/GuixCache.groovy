@@ -36,8 +36,6 @@ import nextflow.util.TestOnly
 
 /**
  * Handle GNU Guix environment creation and caching
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

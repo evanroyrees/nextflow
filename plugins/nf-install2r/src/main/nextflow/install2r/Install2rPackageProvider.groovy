@@ -29,8 +29,6 @@ import nextflow.util.Escape
  *
  * Installs R/CRAN packages into a library directory using install2.r (from the
  * littler package) and activates it by pointing R_LIBS_USER at that directory.
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

@@ -27,8 +27,6 @@ import nextflow.util.Duration
 
 /**
  * Model R pak configuration
- *
- * @author Evan Floden
  */
 @ScopeName("pak")
 @Description("""

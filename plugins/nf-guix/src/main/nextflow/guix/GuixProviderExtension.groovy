@@ -23,8 +23,6 @@ import nextflow.packages.PackageProviderExtension
 
 /**
  * GNU Guix package provider extension
- *
- * @author Evan Floden
  */
 @CompileStatic
 class GuixProviderExtension implements PackageProviderExtension {

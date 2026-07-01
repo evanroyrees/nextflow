@@ -23,8 +23,6 @@ import org.pf4j.PluginWrapper
 
 /**
  * Nextflow install2.r Package Manager Plugin
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

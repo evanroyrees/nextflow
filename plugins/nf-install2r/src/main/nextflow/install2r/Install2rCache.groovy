@@ -35,8 +35,6 @@ import nextflow.util.TestOnly
 
 /**
  * Handle install2.r R library creation and caching
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

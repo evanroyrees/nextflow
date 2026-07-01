@@ -28,8 +28,6 @@ import nextflow.util.Escape
  * GNU Guix package provider implementation.
  *
  * Creates and activates GNU Guix-managed environments from a package list.
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic

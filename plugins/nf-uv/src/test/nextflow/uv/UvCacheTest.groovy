@@ -22,10 +22,6 @@ import java.nio.file.Paths
 import nextflow.SysEnv
 import spock.lang.Specification
 
-/**
- *
- * @author Evan Floden
- */
 class UvCacheTest extends Specification {
 
     def setupSpec() {

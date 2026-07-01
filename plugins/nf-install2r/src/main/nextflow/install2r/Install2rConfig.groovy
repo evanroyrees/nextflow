@@ -27,8 +27,6 @@ import nextflow.util.Duration
 
 /**
  * Model install2.r configuration
- *
- * @author Evan Floden
  */
 @ScopeName("install2r")
 @Description("""

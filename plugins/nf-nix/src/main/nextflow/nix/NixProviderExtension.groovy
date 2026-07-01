@@ -23,8 +23,6 @@ import nextflow.packages.PackageProviderExtension
 
 /**
  * Nix package provider extension
- *
- * @author Evan Floden
  */
 @CompileStatic
 class NixProviderExtension implements PackageProviderExtension {

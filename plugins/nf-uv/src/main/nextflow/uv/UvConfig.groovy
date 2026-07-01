@@ -27,8 +27,6 @@ import nextflow.util.Duration
 
 /**
  * Model uv configuration
- *
- * @author Evan Floden
  */
 @ScopeName("uv")
 @Description("""

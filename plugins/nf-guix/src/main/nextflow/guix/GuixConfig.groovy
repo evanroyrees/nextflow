@@ -27,8 +27,6 @@ import nextflow.util.Duration
 
 /**
  * Model GNU Guix configuration
- *
- * @author Evan Floden
  */
 @ScopeName("guix")
 @Description("""

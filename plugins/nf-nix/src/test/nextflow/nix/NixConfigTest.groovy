@@ -19,10 +19,6 @@ package nextflow.nix
 import spock.lang.Specification
 import spock.lang.Unroll
 
-/**
- *
- * @author Evan Floden
- */
 class NixConfigTest extends Specification {
 
     @Unroll

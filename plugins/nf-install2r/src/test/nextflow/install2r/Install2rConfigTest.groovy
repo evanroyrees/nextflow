@@ -19,10 +19,6 @@ package nextflow.install2r
 import spock.lang.Specification
 import spock.lang.Unroll
 
-/**
- *
- * @author Evan Floden
- */
 class Install2rConfigTest extends Specification {
 
     @Unroll

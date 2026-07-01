@@ -23,8 +23,6 @@ import nextflow.packages.PackageProviderExtension
 
 /**
  * uv package provider extension
- *
- * @author Evan Floden
  */
 @CompileStatic
 class UvProviderExtension implements PackageProviderExtension {

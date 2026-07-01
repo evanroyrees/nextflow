@@ -21,10 +21,6 @@ import java.nio.file.Paths
 import nextflow.packages.PackageSpec
 import spock.lang.Specification
 
-/**
- *
- * @author Evan Floden
- */
 class GuixPackageProviderTest extends Specification {
 
     def 'should report provider name' () {

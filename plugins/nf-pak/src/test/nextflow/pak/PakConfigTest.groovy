@@ -19,10 +19,6 @@ package nextflow.pak
 import spock.lang.Specification
 import spock.lang.Unroll
 
-/**
- *
- * @author Evan Floden
- */
 class PakConfigTest extends Specification {
 
     @Unroll

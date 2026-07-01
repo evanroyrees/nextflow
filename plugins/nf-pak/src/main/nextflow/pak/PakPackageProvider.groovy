@@ -31,8 +31,6 @@ import nextflow.util.Escape
  * list or an existing R library directory. Packages are installed with
  * {@code pak::pkg_install(..., lib=<dir>)} and activated by pointing
  * {@code R_LIBS_USER} at the library directory.
- *
- * @author Evan Floden
  */
 @Slf4j
 @CompileStatic
